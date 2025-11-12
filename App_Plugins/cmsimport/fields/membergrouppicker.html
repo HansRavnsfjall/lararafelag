@@ -1,0 +1,11 @@
+﻿<div ng-controller="cmsimport.MemberPickerController">
+  <umb-node-preview ng-repeat="group in model.value | orderBy"
+                    icon="'icon-users'"
+                    name="group"
+                    allow-remove="true"
+                    on-remove="removeGroup(group)">
+  </umb-node-preview>
+  <a href ng-click="pickGroup()" class="umb-node-preview-add" prevent-default>
+    <localize key="general_choose">Choose</localize>
+  </a>
+</div>

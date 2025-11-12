@@ -1,0 +1,161 @@
+﻿<div>
+    <div class="umb-panel-group__details-group">
+        <div class="umb-panel-group__details-group-title">
+            <div class="umb-panel-group__details-group-name">
+                <localize key="wizardstepConfirm_datasourceOptions">Data options</localize>
+            </div>
+        </div>
+    </div>
+
+    <div class="confirmTable">
+        <div class="confirmTablerow" ng-repeat="c in model.value.datasourceOptions">
+            <div class="confirmCaptionTableColumn">{{c.caption}}</div>
+            <div class="confirmValueTableColumn">{{c.value}}</div>
+        </div>
+    </div>
+    <div class="confirmclear"></div>
+    <div class="umb-panel-group__details-group">
+        <div class="umb-panel-group__details-group-title">
+            <div class="umb-panel-group__details-group-name">
+                <localize key="wizardstepConfirm_importOptions">Import options</localize>
+            </div>
+        </div>
+    </div>
+    <div class="confirmTablerow" ng-repeat="c in model.value.importOptions">
+        <div class="confirmCaptionTableColumn">{{c.caption}}</div>
+        <div class="confirmValueTableColumn">{{c.value}}</div>
+    </div>
+    <div ng-repeat="m in model.value.mappingOptions">
+        <div class="umb-panel-group__details-group">
+            <div class="umb-panel-group__details-group-title">
+                <div class="umb-panel-group__details-group-name">
+                    {{m.mappingTitle}}
+                </div>
+            </div>
+        </div>
+
+        <div class="confirmTablerow" ng-repeat="c in m.mapping">
+            <div ng-hide="c.elementMapping">
+                <div class="confirmCaptionTableColumn">{{c.caption}}</div>
+                <div class="confirmValueTableColumn">
+                    {{c.value}}
+                    <div ng-if="c.additionalOptions">
+                        <div class="cmsimportAdvancedConfirmSettings">
+                            <div class="cmsimportAdvancedSettingsConfirmTitle">
+                                Advanced options
+                            </div>
+                            <div class="confirmTable">
+                                <div ng-repeat="a in c.additionalOptions" class="confirmTablerow">
+                                    <div class="cmsimportConfirmCaption">{{a.caption}}</div>
+                                    <div>{{a.value}}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div ng-show="c.elementMapping">
+                <div class="confirmCaptionTableColumn">{{c.caption}}</div>
+                <div class="confirmValueTableColumn">
+                    <div ng-repeat="e in c.elementMapping">
+                        <div class="cmsimportAdvancedConfirmSettings">
+                            <div class="cmsimportAdvancedSettingsConfirmTitle">
+                                <umb-icon icon="{{e.mappingIcon}}"></umb-icon>  <span>{{e.mappingTitle}}</span>
+                            </div>
+                            <div class="confirmTable">
+                                <div ng-repeat="me in e.mapping" class="confirmTablerow">
+                                    <div class="confirmCaptionTableColumn">{{me.caption}}</div>
+                                    <div class="confirmValueTableColumn">
+                                        {{me.value}}
+                                        <div ng-if="me.additionalOptions">
+                                            <div class="cmsimportAdvancedConfirmSettings">
+                                                <div class="cmsimportAdvancedSettingsConfirmTitle">
+                                                    Advanced options
+                                                </div>
+                                                <div class="confirmTable">
+                                                    <div ng-repeat="a in me.additionalOptions" class="confirmTablerow">
+                                                        <div class="cmsimportConfirmCaption">{{a.caption}}</div>
+                                                        <div>{{a.value}}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!--  -->
+                    </div>
+                </div>
+                <!--   <div ng-hide="c.elementMapping" class="confirmBar cmsimportAdvancedSettings">
+                      <div class="confirmCaptionTableColumn">{{c.caption}}test</div>
+                      <div class="confirmValueTableColumn">
+                          <div ng-repeat="e in c.elementMapping" class="umb-block-list__block">
+                              <div class="umb-block-list__block--view">
+                                  <div class="blockelement-inlineblock-editor">
+                                      <div class="cmsimportElementHeader">
+                                          <div class="cmsimportElementInfoHeader">
+                                              <div class="cmsimportElementInfoIcons">
+                                                  <umb-icon icon="{{e.mappingIcon}}" class="icon"></umb-icon>
+                                              </div>
+                                              <span>{{e.mappingTitle}}</span>
+                                          </div>
+                                      </div>
+                                  </div>
+                              </div>
+                          </div>
+                      </div>
+                  </div> -->
+                <!--  <div class="umb-table">
+                    <div class="umb-table-body">
+                        <div ng-repeat="c in m.mapping">
+                            <div class="umb-table-row">
+                                <div class="umb-table-cell">
+                                    &nbsp;
+                                </div>
+                                <div class="umb-table-cell confirmCaptionTableColumn">{{c.caption}}</div>
+                                <div class="umb-table-cell">
+                                    {{c.value}}
+                                    <div ng-if="c.elementMapping" class="confirmBar">
+                                        <div ng-repeat="e in c.elementMapping" class="umb-block-list__block">
+                                            <div class="umb-block-list__block--view">
+                                                <div class="blockelement-inlineblock-editor">
+                                                    <div class="cmsimportElementHeader">
+                                                        <div class="cmsimportElementInfoHeader">
+                                                            <div class="cmsimportElementInfoIcons">
+                                                                <umb-icon icon="{{e.mappingIcon}}" class="icon"></umb-icon>
+                                                            </div>
+                                                            <span>{{e.mappingTitle}}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div ng-if="c.additionalOptions">
+                                <div class="umb-table-row">
+                                    <div class="umb-table-cell">&nbsp;</div>
+                                    <div class="umb-table-cell confirmCaptionTableColumn">&nbsp;</div>
+                                    <div class="umb-table-cell">
+                                        <div class="cmsimportAdvancedSettings">
+                                            <div class="cmsimportAdvancedSettingsConfirmTitle">
+                                                Advanced options
+                                            </div>
+                                            <div ng-repeat="a in c.additionalOptions" class="cmsimportConfirmAdvancedSettingRow">
+                                                <div class="cmsimportConfirmCaption">{{a.caption}}</div>
+                                                <div>{{a.value}}</div>
+                                            </div>
+
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div> -->
+            </div>
+        </div>
+    </div>

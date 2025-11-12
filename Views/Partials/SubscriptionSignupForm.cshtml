@@ -1,0 +1,12 @@
+@using Lararafelagid.Controllers
+@model Lararafelagid.Models.ViewModels.SubscriptionSignupViewModel
+
+@using (Html.BeginUmbracoForm<SubscriptionSignupSurfaceController>(
+    nameof(SubscriptionSignupSurfaceController.Submit)))
+{
+    // Umbraco injects both `__RequestVerificationToken` and `ufprt`.
+    // You don't have to add @Html.AntiForgeryToken(), but leaving it in won't break things.
+    
+    <input id="email" name="Email" type="email" required />
+    <button type="submit">Melda til</button>
+}

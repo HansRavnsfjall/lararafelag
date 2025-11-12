@@ -1,0 +1,117 @@
+@using System
+@using System.Linq
+@using Umbraco.Cms.Core.Models.Blocks
+@using Umbraco.Cms.Core.Models
+@using Umbraco.Extensions
+@using ContentModels = Umbraco.Cms.Web.Common.PublishedModels
+@inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage<BlockListItem>
+
+@{
+    // Cast the block content
+    var content = (ContentModels.Tidindalisti)Model.Content;
+
+    // How many items to show (from GUI)
+    var numberToShow = content.TalAvTidindum;
+    var takeCount = numberToShow > 0 ? numberToShow : int.MaxValue;
+
+    // Dynamic offset (from GUI Number property alias: startFrom)
+    var startFrom = content.Value<int?>("startFrom") ?? 0;
+    if (startFrom < 0) startFrom = 0; // safety
+
+    // Selected sources (MNTP): IEnumerable<IPublishedContent>
+    var sources = content.Sources;
+
+    var now = DateTime.UtcNow;   // ✅ GMT/UTC
+
+    // Collect descendants of type "tidindaelement", only visible, filter by date, sort, skip/take
+    var elements = Enumerable.Empty<Umbraco.Cms.Core.Models.PublishedContent.IPublishedContent>();
+
+    if (sources != null && sources.Any())
+    {
+        elements = sources
+            .SelectMany(parent => parent
+                .DescendantsOfType("tidindaelement")
+                .Where(x => x.IsVisible()))
+            .DistinctBy(x => x.Id)
+            .Select(x => new
+            {
+                Node = x,
+                Date = x.Value<DateTime?>("dagfesting") ?? DateTime.MinValue
+            })
+            .Where(x => x.Date <= now)                     // ✅ only past/present dates
+            .OrderByDescending(x => x.Date)
+            .Skip(startFrom)
+            .Take(takeCount)
+            .Select(x => x.Node)
+            .ToList();
+    }
+}
+
+<section class="front-greinar">
+    <div class="container bloglist most-read">
+        <div class="row">
+            <div class="col-12 text-center">
+                <h3>Mest lisið</h3>
+            </div>
+        </div>
+        <div class="row">
+            @if (elements.Any())
+            {
+                foreach (var item in elements)
+                {
+                    var title = item.Name;
+                    var intro = item.Value<string>("inngangstekstur");
+                    var date  = item.Value<DateTime?>("dagfesting");
+                    var tema  = item.Value<string>("tema");
+                    var image = item.Value<MediaWithCrops>("mynd");
+                    var link  = item.Url();
+
+                    <div class="col-12 col-md-6">
+                        <a href="@link" class="news-item hover-shadow rounded10">
+                            <div class="img-wrap">
+                                @if (image != null)
+                                {
+                                    // 👉 changed to "squareList"
+                                    var cropUrl = image.GetCropUrl("squareList");
+                                    if (string.IsNullOrWhiteSpace(cropUrl))
+                                    {
+                                        cropUrl = image.Url();
+                                    }
+                                    <img src="@cropUrl?format=webp" alt="@title" />
+                                }
+                            </div>
+
+                            <div class="txt-wrap">
+                                <div class="tema">Tíðindi</div>
+                                <div class="yvirskrift">@title</div>
+
+                                @if (date.HasValue && date.Value != default && 1==2)
+                                {
+                                    <div class="date">@date.Value.ToString("dd. MMMM yyyy")</div>
+                                }
+
+                                @if (!string.IsNullOrEmpty(intro) && 1==2)
+                                {
+                                    var truncatedIntro = intro.Length > 240 
+                                        ? intro.Substring(0, 240) + "…"
+                                        : intro;
+
+                                    <div class="introtext">@truncatedIntro</div>
+                                }
+                                <svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 38 38" fill="none">
+                                    <path d="M28.5 20.5833V30.0833C28.5 30.9232 28.1664 31.7286 27.5725 32.3225C26.9786 32.9164 26.1732 33.25 25.3333 33.25H7.91667C7.07681 33.25 6.27136 32.9164 5.6775 32.3225C5.08363 31.7286 4.75 30.9232 4.75 30.0833V12.6667C4.75 11.8268 5.08363 11.0214 5.6775 10.4275C6.27136 9.83363 7.07681 9.5 7.91667 9.5H17.4167M23.75 4.75H33.25M33.25 4.75V14.25M33.25 4.75L15.8333 22.1667" stroke="#F5F5F5" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </div>
+                        </a>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="col-12">
+                    <p>Onki funnið.</p>
+                </div>
+            }
+        </div>
+    </div>
+</section>

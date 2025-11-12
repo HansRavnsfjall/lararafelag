@@ -1,0 +1,176 @@
+﻿@using System
+@using System.Linq
+@using Umbraco.Extensions
+@using Umbraco.Cms.Core.Models
+@using Umbraco.Cms.Core.Models.PublishedContent
+@using ContentModels = Umbraco.Cms.Web.Common.PublishedModels;
+@inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage<ContentModels.Alitssida>
+
+@functions{
+    // Typed item to avoid null-coalescing issues with anonymous types
+    public class KanningItem
+    {
+        public IPublishedContent Node { get; set; }
+        public DateTime EffectiveDate { get; set; } // dagfesting ?? CreateDate
+        public string Text { get; set; }
+        public MediaWithCrops File { get; set; }
+    }
+}
+
+@{
+    Layout = "Master.cshtml";
+
+    const int listLevel = 3;
+
+    var root = Model.Root();
+    var container = Model.AncestorOrSelf(listLevel - 1); // level 2
+
+    var items = (container != null && container.Root().Id == root?.Id)
+        ? container.Children?.Where(x =>
+            x.Value<bool?>("hideInMenu") != true &&
+            x.Value<bool?>("umbracoNaviHide") != true)
+        : Enumerable.Empty<IPublishedContent>();
+
+    // Heading from nearest level-2 ancestor, only when on a level-3 page
+    string topLevel2Title = null;
+    if (Model.Level == 3)
+    {
+        var level2 = Model.AncestorOrSelf(2);
+        if (level2 != null)
+        {
+            topLevel2Title =
+                level2.Value<string>("pageTitle")
+                ?? level2.Value<string>("title")
+                ?? level2.Name;
+        }
+    }
+}
+
+<section class="content">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-8">
+                @* Render only when on level 3 *@
+                @if (!string.IsNullOrWhiteSpace(topLevel2Title))
+                {
+                    <h3 class="topl-pagename">@topLevel2Title</h3>
+                }
+
+                <h1 class="page-heading">@Model.Name</h1>
+
+                @{
+                    // Build list of children of doctype 'kanningEllaAlit'
+                    var nodes = Model.ChildrenOfType("kanningEllaAlit") ?? Enumerable.Empty<IPublishedContent>();
+
+                    var kanningar = nodes
+                        .Select(x =>
+                        {
+                            var dag = x.Value<DateTime?>("dagfesting");
+                            var eff = dag ?? x.CreateDate;
+                            return new KanningItem
+                            {
+                                Node = x,
+                                EffectiveDate = eff,
+                                Text = x.Value<string>("tekstur"),
+                                File = x.Value<MediaWithCrops>("skjal")
+                            };
+                        })
+                        .ToList();
+
+                    var groups = kanningar
+                        .GroupBy(k => k.EffectiveDate.Year)
+                        .OrderByDescending(g => g.Key)
+                        .ToList();
+                }
+
+                @if (groups.Any())
+                {
+                    foreach (var group in groups)
+                    {
+                        var year = group.Key;
+                        var accordionId = $"accordionElement-{year}";
+                        var yearItems = group
+                            .OrderByDescending(k => k.EffectiveDate)
+                            .ThenBy(k => k.Node.Name)
+                            .ToList();
+
+                        <h3 class="year-separator mt-4">@year</h3>
+
+                        <div class="accordion" id="@accordionId">
+                            @for (var i = 0; i < yearItems.Count; i++)
+                            {
+                                var k = yearItems[i];
+                                var headingId = $"heading-{k.Node.Id}";
+                                var collapseId = $"collapse-{k.Node.Id}";
+                                var fileUrl = k.File?.Url();
+
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header" id="@headingId">
+                                        <button class="accordion-button collapsed d-flex justify-content-between align-items-center"
+                                                type="button"
+                                                data-bs-toggle="collapse"
+                                                data-bs-target="#@collapseId"
+                                                aria-expanded="false"
+                                                aria-controls="@collapseId">
+
+                                            <span>@k.Node.Name</span>
+
+                                            <span class="accordion-icon ms-2">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="33" viewBox="0 0 28 33" fill="none">
+                                                    <path d="M14.0003 2.79169L14.0003 30.2084M14.0003 30.2084L25.667 16.5M14.0003 30.2084L2.33366 16.5"
+                                                          stroke="#DA6B6D" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+                                                </svg>
+                                            </span>
+                                        </button>
+                                    </h2>
+
+                                    <div id="@collapseId"
+                                         class="accordion-collapse collapse"
+                                         aria-labelledby="@headingId"
+                                         data-bs-parent="#@accordionId">
+                                        <div class="accordion-body">
+                                            <div class="editor-text">
+                                                @Html.Raw(k.Text)
+                                            </div>
+
+                                            @if (!string.IsNullOrWhiteSpace(fileUrl))
+                                            {
+                                                <p class="mt-3">
+                                                    <a href="@fileUrl" target="_blank" rel="noopener" class="d-flex align-items-center gap-2">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none">
+                                                            <path d="M6 2h9l5 5v15a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4c0-1.1.9-2 2-2z" stroke="#DA6B6D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                            <path d="M14 2v6h6" stroke="#DA6B6D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                            <text x="6" y="17" font-size="8" fill="#DA6B6D" font-family="Arial, sans-serif">PDF</text>
+                                                        </svg>
+                                                        @(k.File?.Name ?? "Leinkja til skjal")
+                                                    </a>
+                                                </p>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                }
+            </div>
+
+            <div class="col-md-4">
+                <div class="submen-wrapper">
+                    @if (items.Any())
+                    {
+                        <ul>
+                            @foreach (var item in items)
+                            {
+                                var isActive = item.IsAncestorOrSelf(Model);
+                                <li class="@(isActive ? "active" : null)">
+                                    <a href="@item.Url()">@item.Name</a>
+                                </li>
+                            }
+                        </ul>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</section>

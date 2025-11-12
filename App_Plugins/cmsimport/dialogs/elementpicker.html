@@ -1,0 +1,54 @@
+﻿<div class="umb-dialog umb-pane" ng-controller="cmsimport.elementPickerDialogController">
+    <form name="frm" novalidate
+          val-form-manager>
+        <umb-editor-view>
+
+            <umb-editor-header name="model.pageName"
+                               name-locked="true"
+                               hide-icon="true"
+                               hide-description="true"
+                               hide-alias="true">
+            </umb-editor-header>
+
+            <umb-editor-container>
+                
+                <umb-tabs-content class="form-horizontal" view="true">
+                    <umb-empty-state ng-if="hasNoElements()"position="center">
+                        <localize key="cmsimportElementField_elementPickerNoElements"></localize>
+                    </umb-empty-state>
+
+                    <div class="umb-block-card-grid">
+                        <div ng-repeat="block in model.elementConfig.elementDefinitionConfig" class="umb-block-card" ng-click="select(block)">
+                            <div class="__showcase">
+                                <div class="__icon">
+                                    <umb-icon icon="{{block.ContentElementIcon}}">
+                                    </umb-icon>
+                                </div>
+                            </div>
+                            <div class="__info">
+                                <div class="__name" ng-bind="block.ContentElementName"></div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                </umb-tabs-content>
+            </umb-editor-container>
+
+            <umb-editor-footer>
+                <umb-editor-footer-content-right>
+                    <div class="umb-pane btn-toolbar umb-btn-toolbar">
+                        <div>
+                            <a href class="btn btn-link" ng-click="onCancel()"><localize key="general_cancel">Cancel</localize></a>
+                        </div>
+                    </div>
+                </umb-editor-footer-content-right>
+            </umb-editor-footer>
+
+        </umb-editor-view>
+    </form>
+
+</div>
+<div>
+   
+</div>

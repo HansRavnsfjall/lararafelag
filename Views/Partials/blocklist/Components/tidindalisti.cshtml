@@ -1,0 +1,30 @@
+﻿@using Umbraco.Cms.Core.Models.Blocks
+@using ContentModels = Umbraco.Cms.Web.Common.PublishedModels
+@inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage<BlockListItem>
+
+@{
+    var content = (ContentModels.Tidindalisti)Model.Content;
+    var layout  = (content.Value<string>("template") ?? "standard").ToLowerInvariant();
+}
+
+
+@if (layout == "featured")
+{
+    @await Html.PartialAsync("Partials/blocklist/Components/Addins/tidindalisti.featured", Model)
+}
+else if (layout == "bloglist")
+{
+    @await Html.PartialAsync("Partials/blocklist/Components/Addins/tidindalisti.bloggar", Model)
+}
+else if (layout == "stastlist")
+{
+    @await Html.PartialAsync("Partials/blocklist/Components/Addins/tidindalisti.hagtol", Model)
+}
+else if (layout == "mostread")
+{
+    @await Html.PartialAsync("Partials/blocklist/Components/Addins/tidindalisti.mostread", Model)
+}
+else
+{
+    @await Html.PartialAsync("Partials/blocklist/Components/Addins/tidindalisti.standard", Model)
+}

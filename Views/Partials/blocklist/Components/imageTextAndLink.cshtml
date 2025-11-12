@@ -1,0 +1,40 @@
+@using ContentModels = Umbraco.Cms.Web.Common.PublishedModels
+@using Umbraco.Cms.Core.Models
+@using Umbraco.Cms.Core.Models.Blocks
+@inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage<BlockListItem>
+@{
+var content=(ContentModels.ImageTextAndLink)Model.Content;
+var mynd=content.Mynd;
+string? tema=content.Undiryvirskrift;
+var myndUrl=mynd?.Url();
+var yvirskrift=content.Yvirskrift;
+var tekstur=content.Tekstur;
+var leinki=content.Leinki;
+var leinkiTarget=content.Leinki?.Target;
+}
+
+<section class="utbugviging">
+    <div class="container">
+        <div class="row">
+            <div class="col-12">
+                <div class="utbugving-wrapper">
+                    <div class="img-wrap">
+                        <img src="@myndUrl" alt="" />
+                    </div>
+                    <div class="txt-wrap">
+                        <div class="tema">@tema</div>
+                        <h4>@yvirskrift
+                        </h4>
+                        <div class="txt">
+                            @tekstur
+                        </div>
+                        <a class="redblue" href="@leinki" target="@leinkiTarget" class="readmore">
+                            Les meira
+                        </a>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</section>

@@ -1,0 +1,265 @@
+@using System
+@using System.Linq
+@using System.Collections.Generic
+@using System.Globalization
+@using Umbraco.Cms.Core
+@using Umbraco.Cms.Core.Models.Blocks
+@using Umbraco.Cms.Core.Models.PublishedContent
+@using Umbraco.Extensions
+@using ContentModels = Umbraco.Cms.Web.Common.PublishedModels
+@inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage<BlockListItem<ContentModels.AvailableJobsList>>
+
+@functions{
+    private IPublishedContent? ResolveParent(ContentModels.AvailableJobsList content)
+    {
+        var one = content.Value<IPublishedContent>("velMappu");
+        if (one != null) return one;
+
+        var many = content.Value<IEnumerable<IPublishedContent>>("velMappu");
+        if (many != null)
+        {
+            var first = many.FirstOrDefault();
+            if (first != null) return first;
+        }
+
+        var udi = content.Value<Udi>("velMappu");
+        if (udi != null)
+        {
+            var fromUdi = Umbraco.Content(udi);
+            if (fromUdi != null) return fromUdi;
+        }
+
+        var udis = content.Value<IEnumerable<Udi>>("velMappu");
+        if (udis != null)
+        {
+            var resolved = udis.Select(Umbraco.Content).FirstOrDefault(x => x != null);
+            if (resolved != null) return resolved;
+        }
+
+        return null;
+    }
+
+    private DateTime? ParseFreist(IPublishedContent item)
+    {
+        var dt = item.Value<DateTime?>("freist", fallback: Fallback.ToLanguage);
+        if (dt.HasValue) return dt.Value;
+
+        var dto = item.Value<DateTimeOffset?>("freist", fallback: Fallback.ToLanguage);
+        if (dto.HasValue) return dto.Value.LocalDateTime;
+
+        var s = item.Value<string>("freist", fallback: Fallback.ToLanguage);
+        if (!string.IsNullOrWhiteSpace(s))
+        {
+            DateTime parsed;
+            if (DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out parsed)) return parsed;
+
+            var fo = CultureInfo.GetCultureInfo("fo-FO");
+            if (DateTime.TryParse(s, fo, DateTimeStyles.AssumeLocal, out parsed)) return parsed;
+
+            var enGb = CultureInfo.GetCultureInfo("en-GB");
+            if (DateTime.TryParse(s, enGb, DateTimeStyles.AssumeLocal, out parsed)) return parsed;
+
+            string[] formats = { "dd.MM.yyyy", "dd-MM-yyyy", "yyyy-MM-dd", "dd/MM/yyyy", "yyyy-MM-ddTHH:mm", "dd.MM.yyyy HH:mm" };
+            if (DateTime.TryParseExact(s, formats, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out parsed)) return parsed;
+        }
+        return null;
+    }
+}
+
+@{
+    var content = Model.Content;
+
+    // Resolve picked parent folder (alias: velMappu)
+    var jobsParent = ResolveParent(content);
+
+    // Build the list: only 'leystStarv' with freist > now, ordered by soonest first
+    var now = DateTime.Now;
+    var items = new List<IPublishedContent>();
+
+    if (jobsParent is not null)
+    {
+        items = jobsParent
+            .DescendantsOrSelf()
+            .Where(x => x.ContentType.Alias.Equals("leystStarv", StringComparison.OrdinalIgnoreCase))
+            .Select(x => new { Node = x, Freist = ParseFreist(x) })
+            .Where(x => x.Freist.HasValue && x.Freist.Value > now)
+            .OrderBy(x => x.Freist.Value) // closest to now first
+            .Select(x => x.Node)
+            .ToList();
+    }
+
+    var itemCount = items.Count;
+}
+
+<section class="laerarastorv">
+    <div class="container">
+        <div class="row">
+            <div class="col-12">
+                <div class="storv-wrapper">
+                    <h4>Leys lærarastørv</h4>
+
+                    <div class="storv-list">
+                        @if (itemCount > 0)
+                        {
+                            var index = 0;
+                            foreach (var item in items)
+                            {
+                                var url = item.Url();
+                                var date = ParseFreist(item);
+                                var hide = index >= 6; // hide items beyond the first 6
+
+                                if (!string.IsNullOrWhiteSpace(url))
+                                {
+                                    if (hide)
+                                    {
+                                        <a href="@url" class="starv-element" style="max-height:0; overflow:hidden; transition:max-height 0.3s ease;">
+                                            <div class="date">
+                                                @((date ?? DateTime.MinValue).ToString("dd.MM.yyyy"))
+                                            </div>
+                                            <div class="starvsheiti">
+                                                @item.Name
+                                            </div>
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        <a href="@url" class="starv-element">
+                                            <div class="date">
+                                                @((date ?? DateTime.MinValue).ToString("dd.MM.yyyy"))
+                                            </div>
+                                            <div class="starvsheiti">
+                                                @item.Name
+                                            </div>
+                                        </a>
+                                    }
+                                }
+                                else
+                                {
+                                    if (hide)
+                                    {
+                                        <div class="starv-element" style="max-height:0; overflow:hidden; transition:max-height 0.3s ease;">
+                                            <div class="date">
+                                                @((date ?? DateTime.MinValue).ToString("dd.MM.yyyy"))
+                                            </div>
+                                            <div class="starvsheiti">
+                                                @item.Name
+                                            </div>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="starv-element">
+                                            <div class="date">
+                                                @((date ?? DateTime.MinValue).ToString("dd.MM.yyyy"))
+                                            </div>
+                                            <div class="starvsheiti">
+                                                @item.Name
+                                            </div>
+                                        </div>
+                                    }
+                                }
+
+                                index++;
+                            }
+                        }
+                        else
+                        {
+                            <div class="nojob">Eingi leys størv í løtuni.</div>
+                        }
+                    </div>
+
+                    @if (itemCount > 6)
+                    {
+                        <div class="oll-link-wrapper">
+                            <span class="oll-storv" role="button" tabindex="0">Vís fleiri</span>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+// Global delegation; smooth fold-out via max-height transition (0.3s).
+(function () {
+  if (window.__ollStorvHandlerAttached) return;
+  window.__ollStorvHandlerAttached = true;
+
+  function expand(wrapper) {
+    if (!wrapper) return;
+    var list = wrapper.querySelector('.storv-list');
+    if (!list) return;
+
+    var hidden = Array.prototype.filter.call(
+      list.querySelectorAll('.starv-element'),
+      function (el) { return el.style && el.style.maxHeight === '0px' || el.style.maxHeight === '0' || el.style.maxHeight === '0px '; }
+    );
+
+    // If inline style is exactly as we set (max-height:0), animate to its natural height
+    list.querySelectorAll('.starv-element').forEach(function (el) {
+      var isCollapsed = el.style && el.style.maxHeight && el.style.maxHeight.indexOf('0') === 0;
+      if (!isCollapsed) return;
+
+      // Measure target height
+      el.style.maxHeight = '0px';          // ensure starting at 0
+      el.style.overflow = 'hidden';
+      el.style.transition = 'max-height 0.3s ease';
+
+      // Force reflow
+      void el.offsetHeight;
+
+      // Animate to full height
+      var target = el.scrollHeight;
+      el.style.maxHeight = target + 'px';
+
+      // Cleanup after transition to allow natural height
+      el.addEventListener('transitionend', function tidy(e) {
+        if (e.propertyName !== 'max-height') return;
+        el.style.removeProperty('max-height');
+        el.style.removeProperty('overflow');
+        el.style.removeProperty('transition');
+        el.removeEventListener('transitionend', tidy);
+      });
+    });
+
+    var linkWrap = wrapper.querySelector('.oll-link-wrapper');
+    if (linkWrap) linkWrap.style.display = 'none';
+  }
+
+  document.addEventListener('click', function (e) {
+    var btn = e.target && e.target.closest('.oll-storv');
+    if (!btn) return;
+    e.preventDefault();
+    expand(btn.closest('.storv-wrapper'));
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    var btn = document.activeElement && document.activeElement.closest && document.activeElement.closest('.oll-storv');
+    if (!btn) return;
+    e.preventDefault();
+    expand(btn.closest('.storv-wrapper'));
+  });
+})();
+
+
+
+document.addEventListener("DOMContentLoaded", function() {
+  const storvList = document.querySelector(".storv-wrapper .storv-list");
+
+  if (storvList) {
+    const links = storvList.querySelectorAll("a");
+    if (links.length === 1) {
+      storvList.style.gridTemplateColumns = "1fr";
+    
+        document.querySelector('.starv-element').style.margin = 'auto';
+
+
+    } else {
+      storvList.style.gridTemplateColumns = "1fr 1fr";
+    }
+  }
+});
+
+</script>

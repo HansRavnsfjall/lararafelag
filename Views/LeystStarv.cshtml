@@ -1,0 +1,84 @@
+﻿@using System
+@using System.Globalization
+@using Umbraco.Extensions
+@using Umbraco.Cms.Core.Models.PublishedContent
+@inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage<ContentModels.LeystStarv>
+@using ContentModels = Umbraco.Cms.Web.Common.PublishedModels;
+
+@{
+    Layout = "Master";
+
+    // Fields from LeystStarv
+    var yvirskrift      = Model?.Name ?? "";
+    var inngangstekstur = Model?.Inngangstekstur;
+    var tekstur         = Model?.Tekstur;
+    var freistRaw       = Model?.Value<DateTime?>("freist");
+
+    // Normalize freist to UTC (Umbraco typically stores UTC; handle Local/Unspecified safely)
+    DateTime? ToUtc(DateTime? d)
+    {
+        if (!d.HasValue) return null;
+        var v = d.Value;
+        if (v.Kind == DateTimeKind.Utc) return v;
+        if (v.Kind == DateTimeKind.Local) return v.ToUniversalTime();
+        // Unspecified: treat as UTC to avoid accidental shifts
+        return DateTime.SpecifyKind(v, DateTimeKind.Utc);
+    }
+
+    var freistUtc = ToUtc(freistRaw);
+    var nowUtc    = DateTime.UtcNow;
+
+    // If freist is before now => 404 (expired)
+    var isExpired = freistUtc.HasValue && freistUtc.Value < nowUtc;
+    if (isExpired)
+    {
+        Context.Response.StatusCode = 404;
+        Context.Response.Headers["X-Robots-Tag"] = "noindex, nofollow";
+    }
+}
+
+@if (isExpired)
+{
+    <!-- Minimal 404 presentation (status already set above) -->
+    <section class="content">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-8">
+                    <h1>404 – Síða ikki funnin</h1>
+                    <p>Henda lýsingin er ikki longur tøk.</p>
+                </div>
+                <div class="col-md-4"></div>
+            </div>
+        </div>
+    </section>
+}
+else
+{
+<section class="content">
+    <div class="container">
+        <div class="row">
+            <!-- LEFT / MAIN -->
+            <div class="col-md-8">
+                <h3 class="topl-pagename">Starvslýsing</h3>
+                <h1 class="page-heading">@yvirskrift</h1>
+
+                @if (freistUtc.HasValue)
+                {
+                    <div class="newsdate">@freistUtc.Value.ToLocalTime().ToString("dd.MM.yyyy", CultureInfo.InvariantCulture)</div>
+                }
+
+                <div class="news-intro-text">
+                    @inngangstekstur
+                </div>
+
+                <div class="page-text editor-text">
+                    @tekstur
+                </div>
+            </div>
+
+            <!-- RIGHT COLUMN: keep structure empty as requested -->
+            <div class="col-md-4"></div>
+        </div>
+    </div>
+</section>
+}

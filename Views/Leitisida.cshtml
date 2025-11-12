@@ -1,0 +1,438 @@
+﻿@using System
+@using Umbraco.Extensions
+@using Umbraco.Cms.Core.Models.PublishedContent
+@using Umbraco.Cms.Web.Common.PublishedModels
+@inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage<ContentModels.Leitisida>
+
+@{
+    Layout = "Master";
+}
+
+<!-- ===== Leiting (Bootstrap 5) ===== -->
+<div id="leiting-root" class="container my-5" data-results-url="/leiting">
+  <div class="row g-4 align-items-start">
+    <!-- MAIN: active category -->
+    <div class="col-lg-8 order-lg-1 order-2">
+      <h1 class="display-5 fw-bold mb-3">Leitiúrslit</h1>
+      <div id="leiting-summary" class="mb-4 text-danger fw-semibold"></div>
+
+      <div id="leiting-left" class="mb-4 position-relative">
+        <div class="text-center py-5" id="leiting-left-loading" style="display:none">
+          <div class="spinner-border" role="status" aria-hidden="true"></div>
+          <div class="mt-2">Lesi úrslit…</div>
+        </div>
+      </div>
+
+      <!-- Load more -->
+      <div class="text-start" id="leiting-loadmore-wrap" style="display:none">
+        <button class="btn btn-success more-news result rounded-pill px-4" id="leiting-loadmore">Vis fleiri úrslit</button>
+      </div>
+    </div>
+
+    <!-- RIGHT: categories (links + counts only) -->
+    <aside class="col-lg-4 order-lg-2 order-2">
+      <div class="border-start ps-4">
+        <div id="leiting-right" class="list-group list-group-flush position-relative">
+          <div class="text-center py-4" id="leiting-right-loading" style="display:none">
+            <div class="spinner-border" role="status" aria-hidden="true"></div>
+          </div>
+        </div>
+        <div id="leiting-right-extra" class="mt-3"></div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script>
+// ===== CONFIG =====
+const SEARCH_API  = "/umbraco/api/search/query";
+const ALIAS       = "tidindaelement";   // doctypes for the 3 news groups
+const OTHER_ALIAS = "";                 // (unused here; controller path uses primaryAlias)
+const SITE_ROOTS  = ["81f22605-925d-4848-bb38-b886783b2083"];
+
+// Your 3 category roots on this site:
+const GROUP_ROOTS = [
+  "0cb6d8be-f07f-48e3-8bdf-37194587c939",
+  "1abfe2c9-5188-47ae-9750-1fb00f1ace21",
+  "b3a451ee-3d08-40aa-bf70-c0925f318522"
+];
+
+// Special pseudo-keys
+const OTHER_KEY      = "__OTHER__"; // Aðrar síður (alias bucket)
+const OTHER_LABEL    = "Aðrar síður";
+const OTHER_PRIMARY_ALIAS = "undirsida"; // ★ CHANGED for "Aðrar síður"
+
+const EXT_KEY        = "__EXT__";   // External site (Lærarafelagið)
+const EXT_LABEL      = "Úrslit frá Lærarafelagnum";
+const EXT_SITE_ROOT  = "535f7cdc-9c1e-49b9-a115-f79d553b9984";
+
+// Page size for “load more”
+const PAGE_SIZE   = 5;
+
+// ===== RESULTS PAGE SCRIPT =====
+(function(){
+  const rootEl   = document.getElementById('leiting-root');
+  const left     = document.getElementById('leiting-left');
+  const right    = document.getElementById('leiting-right');
+  const summary  = document.getElementById('leiting-summary');
+  const leftLoad = document.getElementById('leiting-left-loading');
+  const rightLoad= document.getElementById('leiting-right-loading');
+  const loadMoreWrap = document.getElementById('leiting-loadmore-wrap');
+  const loadMoreBtn  = document.getElementById('leiting-loadmore');
+  const rightExtra   = document.getElementById('leiting-right-extra');
+  const asideCol     = rootEl.querySelector('aside.col-lg-4');
+
+  const resultsUrl = rootEl?.dataset?.resultsUrl || "/leiting";
+
+  const url = new URL(window.location.href);
+  let q        = url.searchParams.get('q') || "";
+
+  // ★ CHANGED for "Aðrar síður": read primaryAlias and prefer it over root
+  let primaryAlias  = url.searchParams.get('primaryAlias') || "";
+  let rootKey       = url.searchParams.get('root') || GROUP_ROOTS[0];
+  let page          = parseInt(url.searchParams.get('page') || "1", 10);
+
+  if (primaryAlias) {
+    // alias mode: ignore any old root in URL
+    rootKey = "";
+  } else {
+    // root mode
+    if (![OTHER_KEY, EXT_KEY, ...GROUP_ROOTS].includes(rootKey)) rootKey = GROUP_ROOTS[0];
+  }
+
+  // State for “load more”
+  let accumulatedItems = [];
+  let totalPrimary = 0;
+  let primaryTitle = "";
+
+  // cache latest sidebar groups so we can promote “Aðrar síður” to primary when needed
+  let latestSidebarGroups = [];
+  let extTotal = 0; // total for external site
+
+  // Intercept ANY click inside the sidebar and normalize to alias vs root
+  document.addEventListener('click', (e) => {
+    const a = e.target.closest('#leiting-right a, #leiting-right-extra a');
+    if (!a) return;
+
+    const dataRoot = a.getAttribute('data-root') || "";
+    const href = a.getAttribute('href') || "";
+    const isOtherText = (a.textContent || "").trim().toLowerCase() === OTHER_LABEL.toLowerCase();
+    const isOtherHref = /[?&]primaryAlias=undirsida/i.test(href);
+    const hrefRootMatch = href.match(/[?&]root=([^&#]+)/i);
+
+    // If it's the "Aðrar síður" item, switch to alias mode
+    if (isOtherText || isOtherHref || dataRoot === OTHER_KEY) {
+      e.preventDefault();
+      primaryAlias = OTHER_PRIMARY_ALIAS;   // ★ CHANGED for "Aðrar síður"
+      rootKey = "";                         // clear root
+      page = 1;
+      accumulatedItems = [];
+      updateUrl();
+      load();
+      return;
+    }
+
+    // Otherwise treat as a normal root switch
+    const target = dataRoot || (hrefRootMatch ? decodeURIComponent(hrefRootMatch[1]) : "");
+    if (!target) return; // not a category link
+    e.preventDefault();
+
+    primaryAlias = ""; // leaving alias mode
+    rootKey = target;
+    page = 1;
+    accumulatedItems = [];
+    updateUrl();
+    load();
+  });
+
+  loadMoreBtn?.addEventListener('click', () => {
+    page += 1;
+    load(true); // append
+  });
+
+  function updateUrl(){
+    const u = new URL(resultsUrl, window.location.origin);
+    if (q) u.searchParams.set('q', q); else u.searchParams.delete('q');
+
+    // ★ CHANGED for "Aðrar síður": write alias or root
+    if (primaryAlias) {
+      u.searchParams.set('primaryAlias', primaryAlias);
+      u.searchParams.delete('root');
+    } else {
+      u.searchParams.set('root', rootKey);
+      u.searchParams.delete('primaryAlias');
+    }
+
+    u.searchParams.set('page', page);
+    history.replaceState(null, "", u.toString());
+  }
+
+  // --- URLs for API calls ---
+  function currentSiteRootsForPrimary(){
+    if (!primaryAlias && rootKey === EXT_KEY) return [EXT_SITE_ROOT];
+    return SITE_ROOTS;
+  }
+
+  function buildPrimaryUrl(){
+    const p = new URLSearchParams();
+    if (q) p.set('q', q);
+
+    // Keep site scope for consistency with your working setup
+    const roots = currentSiteRootsForPrimary();
+    if (roots.length) p.set('siteRoots', roots.join(','));
+
+    // ★ CHANGED for "Aðrar síður": use primaryAlias + otherSkip/otherTake (this is the path you said works)
+    if (primaryAlias) {
+      p.set('primaryAlias', primaryAlias);              // undirsida
+      p.set('otherSkip', String((page-1) * PAGE_SIZE)); // paging for alias bucket
+      p.set('otherTake', String(PAGE_SIZE));
+      return `${SEARCH_API}?${p.toString()}`;
+    }
+
+    // External site as a primary “bucket”
+    if (rootKey === EXT_KEY){
+      p.set('primaryAlias', ALIAS);
+      p.set('otherSkip', String((page-1) * PAGE_SIZE));
+      p.set('otherTake', String(PAGE_SIZE));
+      return `${SEARCH_API}?${p.toString()}`;
+    }
+
+    // Regular category on this site
+    p.set('alias', ALIAS);
+    p.set('primaryRoot', rootKey);
+    p.set('skip', ((page-1)*PAGE_SIZE));
+    p.set('take', PAGE_SIZE);
+    return `${SEARCH_API}?${p.toString()}`;
+  }
+
+  function buildSidebarUrl(){
+    const p = new URLSearchParams();
+    if (q) p.set('q', q);
+    p.set('alias', ALIAS);
+    if (SITE_ROOTS.length) p.set('siteRoots', SITE_ROOTS.join(','));
+    const otherRoots = GROUP_ROOTS.filter(k => k !== rootKey); // if in alias mode, this is just all roots
+    if (otherRoots.length) p.set('groupRoots', otherRoots.join(','));
+    p.set('takePerGroup', 0);  // only names + totals
+    p.set('take', 0);
+    p.set('mode', 'groups');
+    return `${SEARCH_API}?${p.toString()}`;
+  }
+
+  // Totals for the external site
+  function buildExternalTotalsUrl(){
+    const p = new URLSearchParams();
+    if (q) p.set('q', q);
+    p.set('alias', ALIAS);
+    p.set('siteRoots', EXT_SITE_ROOT);
+    p.set('take', 0);
+    p.set('takePerGroup', 0);
+    p.set('mode', 'groups');
+    return `${SEARCH_API}?${p.toString()}`;
+  }
+
+  async function load(append=false){
+    if (!append){
+      leftLoad.style.display = '';
+      rightLoad.style.display = '';
+      left.innerHTML = '';
+      summary.textContent = '';
+      rightExtra.innerHTML = '';
+      loadMoreWrap.style.display = 'none';
+      if (page === 1) { accumulatedItems = []; totalPrimary = 0; primaryTitle = ""; }
+    }
+
+    try{
+      const [priRes, sideRes, extRes] = await Promise.all([
+        fetch(buildPrimaryUrl(), { headers: { 'Accept':'application/json' }}),
+        fetch(buildSidebarUrl(), { headers: { 'Accept':'application/json' }}),
+        fetch(buildExternalTotalsUrl(), { headers: { 'Accept':'application/json' }})
+      ]);
+      if (!priRes.ok) throw new Error(`Primary HTTP ${priRes.status}`);
+      if (!sideRes.ok) throw new Error(`Sidebar HTTP ${sideRes.status}`);
+
+      const [priData, sideData, extData] = await Promise.all([
+        priRes.json(), sideRes.json(), extRes.ok ? extRes.json() : Promise.resolve(null)
+      ]);
+
+      latestSidebarGroups = (sideData?.groups ?? sideData?.Groups ?? []);
+      extTotal = Number(extData?.totals?.overall ?? extData?.Totals?.Overall ?? 0);
+
+      renderPrimary(priData, append);
+      renderSidebar(sideData);
+      renderExternalSidebarItem();
+      sanitizeSidebarLinks();
+      toggleRightVisibility();
+    }catch(err){
+      left.innerHTML  = `<div class="alert alert-danger">Tókst ikki at lesa úrslit (${escapeHtml(err.message)}).</div>`;
+      right.innerHTML = ``;
+      rightExtra.innerHTML = ``;
+      toggleRightVisibility();
+    }finally{
+      leftLoad.style.display = 'none';
+      rightLoad.style.display = 'none';
+    }
+  }
+
+  // --- Render main column with “load more” + truncated text ---
+  function renderPrimary(data, append){
+    let items = [];
+    let title = '';
+    let total = 0;
+
+    const primary = data?.primary ?? data?.Primary ?? null;
+
+    if (primary){
+      items = primary.items ?? primary.Items ?? [];
+      title = primary.rootName ?? primary.RootName ?? (primaryAlias ? OTHER_LABEL : '');
+      total = Number(primary.total ?? primary.Total ?? items.length);
+    } else {
+      // fallback (rare)
+      items = data?.items ?? data?.Items ?? [];
+      title = data?.rootName ?? data?.RootName ?? (primaryAlias ? OTHER_LABEL : '');
+      total = Number(data?.total ?? data?.Total ?? items.length);
+    }
+
+    if (rootKey === EXT_KEY) title = EXT_LABEL;
+
+    if (append){
+      accumulatedItems = accumulatedItems.concat(items);
+    } else {
+      accumulatedItems = items;
+      primaryTitle = title;
+      totalPrimary = total;
+    }
+
+    renderSummary(q, primaryTitle, totalPrimary);
+
+    left.innerHTML = accumulatedItems.map(it => {
+      const url = it.url ?? it.Url ?? it.link ?? it.Link ?? '#';
+      const name = it.name ?? it.Name ?? it.title ?? it.Title ?? '';
+      const snippet = getSnippet(it, 180);
+      return `
+        <article class="mb-4 pb-3 border-bottom">
+          <h2 class="h4 mb-2"><a href="${url}" class="text-decoration-none">${escapeHtml(name)}</a></h2>
+          ${snippet ? `<p class="mb-0 text-muted">${escapeHtml(snippet)}</p>` : ``}
+        </article>
+      `;
+    }).join('');
+
+    const loadedCount = accumulatedItems.length;
+    loadMoreWrap.style.display = (loadedCount < totalPrimary) ? '' : 'none';
+  }
+
+  // --- Right column: only groups with results (leave alias line intact if server returns it) ---
+  function renderSidebar(data){
+    const groups = data?.groups ?? data?.Groups ?? [];
+    const pieces = [];
+
+    for (const g of groups){
+      const gName  = g.rootName ?? g.RootName ?? 'Bólkur';
+      const gTotal = Number(g.total ?? g.Total ?? 0);
+      if (gTotal <= 0) continue;
+
+      const kind   = String(g.kind ?? g.Kind ?? 'root').toLowerCase();
+      const alias  = g.alias ?? g.Alias ?? null;
+      const gKey   = (g.rootKey ?? g.RootKey ?? '').toString();
+
+      // If the API gives the alias bucket in groups, render it as “Aðrar síður”
+      if (kind === 'alias' && (alias || gName.toLowerCase() === OTHER_LABEL.toLowerCase())){
+        // Hide if it's already the active view (alias mode)
+        if (primaryAlias && (alias?.toLowerCase?.() === primaryAlias.toLowerCase() || gName.toLowerCase() === OTHER_LABEL.toLowerCase())) continue;
+
+        pieces.push(`
+          <a href="#" data-root="${OTHER_KEY}" class="list-group-item d-flex justify-content-between align-items-center py-3">
+            <span class="fw-semibold">${escapeHtml(OTHER_LABEL)}</span>
+            <span class="text-muted">(${gTotal})</span>
+          </a>
+        `);
+        continue;
+      }
+
+      // Normal root groups
+      if (!primaryAlias && gKey && gKey.toLowerCase() === String(rootKey).toLowerCase()) continue; // skip current
+      pieces.push(`
+        <a href="#" data-root="${gKey}" class="list-group-item d-flex justify-content-between align-items-center py-3">
+          <span class="fw-semibold">${escapeHtml(gName)}</span>
+          <span class="text-muted">(${gTotal})</span>
+        </a>
+      `);
+    }
+
+    right.innerHTML = pieces.join('');
+  }
+
+  // External site category
+  function renderExternalSidebarItem(){
+    if (extTotal > 0 && rootKey !== EXT_KEY){
+      const countTxt = `(${extTotal})`;
+      rightExtra.innerHTML = `
+        <a href="#" data-root="${EXT_KEY}" class="list-group-item d-flex justify-content-between align-items-center py-3 border rounded">
+          <span class="fw-semibold">${escapeHtml(EXT_LABEL)}</span>
+          <span class="text-muted">${escapeHtml(countTxt)}</span>
+        </a>
+      `;
+    } else {
+      rightExtra.innerHTML = "";
+    }
+  }
+
+  // Hide whole right column if there are zero groups AND no external results
+  function toggleRightVisibility(){
+    const hasGroups   = !!right.querySelector('a[data-root]');
+    const hasExternal = !!rightExtra.querySelector('a[data-root]');
+    if (asideCol) asideCol.style.display = (hasGroups || hasExternal) ? '' : 'none';
+  }
+
+  // Normalize ALL sidebar anchors so hover never shows stale URLs
+  function sanitizeSidebarLinks(){
+    document.querySelectorAll('#leiting-right a, #leiting-right-extra a').forEach(a => {
+      a.setAttribute('href', '#');
+      a.setAttribute('role', 'button');
+    });
+  }
+
+  function renderSummary(term, catName, total){
+    const start = (accumulatedItems.length ? (accumulatedItems.length - (Math.min(accumulatedItems.length, PAGE_SIZE) - 1)) : 1);
+    const end   = accumulatedItems.length;
+    const countPart = total ? `Víst eru ${start}-${end} av ${total} undir “${escapeHtml(catName)}”` : '';
+    const termPart  = term ? `Tú leitaði eftir “${escapeHtml(term)}”.` : '';
+    summary.innerHTML = [termPart, countPart].filter(Boolean).join(' ');
+  }
+
+  // --- helpers for truncated text pulled from alias "tekstur" ---
+  function getSnippet(item, max = 180){
+    const raw =
+      item.tekstur ?? item.Tekstur ??
+      item.excerpt ?? item.Excerpt ??
+      item.summary ?? item.Summary ??
+      item.body ?? item.Body ?? "";
+    const text = stripHtml(String(raw));
+    return truncateNicely(text, max);
+  }
+
+  function stripHtml(html){
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    return (div.textContent || div.innerText || "").replace(/\s+/g, " ").trim();
+  }
+
+  function truncateNicely(s, max){
+    if (!s) return "";
+    if (s.length <= max) return s;
+    let cut = s.lastIndexOf(" ", max - 1);
+    if (cut < Math.floor(max * 0.6)) cut = max - 1;
+    return s.slice(0, cut).replace(/[.,;:!\-–—\s]+$/,"") + " …";
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c => (
+      {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]
+    ));
+  }
+
+  // init
+  updateUrl();
+  load();
+})();
+</script>
+

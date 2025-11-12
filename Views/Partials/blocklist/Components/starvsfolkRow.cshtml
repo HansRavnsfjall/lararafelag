@@ -1,0 +1,60 @@
+@using ContentModels = Umbraco.Cms.Web.Common.PublishedModels
+@using Umbraco.Cms.Core.Models.Blocks
+@using Umbraco.Cms.Core.Models
+@using Umbraco.Extensions
+@inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage<BlockListItem>
+
+@{
+    // Cast this block’s content to your strongly typed element model
+    var content = (ContentModels.StarvsfolkRow)Model.Content;
+
+    // Nested block list property
+    var blocks = content.Starvsfolk; // BlockListModel
+}
+
+
+                    @if (blocks != null && blocks.Count > 0)
+                    {
+                        <text>                        
+                            <div class="container">
+
+                        @foreach (var block in blocks)
+                        {
+                            
+                                var mynd = block.Content.Value<MediaWithCrops>("mynd");
+                                var myndUrl = mynd?.Url();
+                                
+                                string navn = block.Content.Value<string>("navn") ?? "";
+                                string starvsheiti = block.Content.Value<string>("starvsheiti") ?? "";
+                                string telefon = block.Content.Value<string>("telefon") ?? "";
+                                string teldupostur = block.Content.Value<string>("teldupostur") ?? "";
+                                string tekstur = block.Content.Value<string>("tekstur") ?? "";
+
+                                <div class="row emprow">
+                                    <div class="col-12">
+                                        @if(myndUrl != null){
+                                        <img class="empImg" src="@myndUrl" alt="@navn" />
+                                        }
+                                        @if(!string.IsNullOrEmpty(navn)){
+                                        <div class="empName">@navn</div>}
+                                        @if(!string.IsNullOrEmpty(starvsheiti)){
+                                        <div class="empJobTitle">@starvsheiti</div>
+                                        }
+                                         @if(!string.IsNullOrEmpty(telefon)){
+                                        <div class="empPhone">tel. (+298) @telefon</div>
+                                        }
+                                         @if(!string.IsNullOrEmpty(teldupostur)){
+                                        <a href="mailto:@teldupostur" class="empMail">@teldupostur</a>
+                                        }
+                                        @if(!string.IsNullOrEmpty(tekstur)){
+                                        <div class="empText">@Html.Raw(tekstur)</div>
+                                        }
+                                  
+                                    </div>
+                                </div>
+                        
+                        }   </div>
+                        </text>
+                    }
+
+            

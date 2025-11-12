@@ -1,0 +1,39 @@
+<div ng-controller="cmsimport.propertyMappingController" ng-cloak>
+    <div ng-repeat="mapping in model.value.mapping | filter:{visible:true}">
+        <div ng-repeat="item in mapping.propertyGroups">
+            <div class="umb-group-panel__header cmsimportHeaderMargin">
+                {{item}}
+            </div>
+            <div class="cmsimport-group-panel-content" ng-repeat="prop in mapping.propertyInfo  | filter: { propertyTypeGroup: item}:true">
+                <div class="control-group">
+                    <div ng-class="{cmimportFieldError: prop.hasErrors === true}">
+                        <div ng-show="{{prop.hasErrors}}" class="alert alert-error property-error">
+                            <ul>
+                                <li ng-repeat="validationMessage in prop.validationErrors">{{validationMessage}}</li>
+                            </ul>
+                        </div>
+                        <div class="umb-el-wrap cmsimportMappingControl" ng-class="{'cmsimportMappingControlAdvancedSetting' : showAdvancedOptionsForm(prop) === true}">
+
+                            <label class="control-label ng-binding" title="pageTitle">
+                                {{prop.propertyName}} <small class="ng-binding" ng-show="prop.showAlias">Alias:{{prop.propertyAlias}}</small>
+                            </label>
+                            <div class="controls" noDirtyCheck ng-show="prop.simpleMapping" ng-class="{'cmsimportMappingControlAdvancedSetting cmsimportMappingControlAdvancedSettingIndent' : showAdvancedOptionsForm(prop) === true}">
+                                <select ng-model="prop.mappedDataSourceColumn" ng-options="column as column for column in mapping.columns"></select> <span ng-show="showAdvancedOptionsOption(prop)" class="icon-settings cmsimportAdvancedIcon" title="Collapse advanced settings" ng-click="toggleForm(prop)"></span>
+                                <div ng-if="showAdvancedOptionsForm(prop)" class="cmsimportAdvancedSettings">
+                                    <umb-property data-element="property-{{prop.advancedOptionProperties.providerAlias}}" ng-repeat="property in prop.advancedOptionProperties.properties track by property.alias" property="property">
+                                        <umb-property-editor model="property"></umb-property-editor>
+                                    </umb-property>
+                                </div>
+                            </div>
+                            <div class="cmsimportElementMapping" noDirtyCheck ng-hide="prop.simpleMapping">
+                                <umb-property data-element="property-{{prop.propertyAlias}}" ng-repeat="property in prop.elementMapping.elements track by property.PropertyAlias" property="property">
+                                    <umb-property-editor model="property"></umb-property-editor>
+                                </umb-property>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

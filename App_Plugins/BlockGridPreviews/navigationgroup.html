@@ -1,0 +1,14 @@
+<button type="button" ng-click="block.edit()" ng-focus="block.ng-focus">
+    <div class="nav-group-container">
+        <p>
+            <strong>{{block.data.title}}</strong>
+            <span ng-if="block-data-link">{{block.data.link[0].url}}</span>
+        </p>
+        <ul>
+            <li ng-if="block.data.childLinks" ng-repeat="(key, value) in block.data.childLinks">
+                <strong>{{value.name}}</strong>
+                <span>{{value.url}}</span>
+            </li>
+        </ul>
+    </div>
+</button>

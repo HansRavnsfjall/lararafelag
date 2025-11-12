@@ -1,0 +1,55 @@
+@using ContentModels = Umbraco.Cms.Web.Common.PublishedModels
+@using Umbraco.Cms.Core.Models.Blocks
+@inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage<BlockListItem>
+
+@{
+    // Cast this block’s content to your strongly typed element model
+    var content = (ContentModels.ForsidaLinks)Model.Content;
+    var leinki= content.Leinki.Url;
+    // Nested block list property
+    var blocks = content.Leinkilisti; // BlockListModel
+}
+
+<section class="link-and-awards">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-6 col-12">
+                <div class="links">
+
+                    @if (blocks != null && blocks.Count > 0)
+                    {
+                        foreach (var block in blocks)
+                        {
+                            if (block.Content.ContentType.Alias == "leinki")
+                            {
+                                var heading = block.Content.Value<string>("leinkiYvirskrift") ?? "";
+                                var text    = block.Content.Value<string>("leinkiTekstur") ?? "";
+                                var link    = block.Content.Value<Umbraco.Cms.Core.Models.Link>("leinkiLeinki");
+                                var url     = link?.Url ?? "";
+
+                                <a class="bluebox-link hover-shadow" href="@url" target="_blank">
+                                    <pre>@heading</pre>
+                                    <linktext>@text</linktext>
+                                    <img src="~/icons/external-link.svg" />
+                                </a>
+                            }
+                        }
+                    }
+
+                </div>
+            </div>
+            <div class="col-md-6 col-12">
+                <div class="climate-award-wrapper">
+                    <h3>@content.Yvirskrift</h3>
+                    <div class="txt">
+                        Vinnarin av Veðurlagsvirðisløn Føroya Lærarafelags er ein skúli,
+                        ið hevur skarað framúr í arbeiðinum at geva børnum og ungum áhuga fyri
+                        og innlit í veðurlagsavbjóðingar og loysnir á veðurlagsavbjóðingum.
+                    </div>
+                    <img src="~/images/vedurlagsvirdisloen.svg" alt="" />
+                    <a class="redblue" href="@content.Leinki.Url">Les meira</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>

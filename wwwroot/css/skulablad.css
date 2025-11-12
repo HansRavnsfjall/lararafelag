@@ -1,0 +1,671 @@
+.hagtollist a.more-news.small-green {
+  border: none;
+  background-color: #3A461E;
+  color: #FFF !important;
+  padding: 13px 55px !important   ;
+}
+.hagtollist a.more-news.small-green:hover {
+  color: #3A461E !important;
+}
+.hagtollist a.more-news.small-green:before {
+  background-color: #8BB873 !important;
+}
+.hagtollist .small-orange {
+  margin-top: 50px;
+}
+.grow-hover {
+  transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+.grow-hover:hover {
+  transform: scale(1.005);
+  /* grows by 3% */
+}
+.hover-shadow {
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+.hover-shadow:hover {
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+  /* optional: adds a tiny lift */
+}
+.navbar-section {
+  background-color: #3A461E;
+}
+.toptop-wrapper a {
+  color: #3A461E;
+}
+.gerst-limur a {
+  border-color: #8BB873;
+}
+.toptop-wrapper svg {
+  stroke: #3A461E;
+}
+.skulablad-logo {
+  color: #FFF;
+  font-family: Geologica;
+  font-size: 46px;
+  font-style: normal;
+  font-weight: 700;
+}
+.skulablad-logo .bladid {
+  color: #8BB873;
+}
+.footer {
+  background-color: #3A461E;
+}
+.footer-content-wrapper .skulablad-logo {
+  font-size: 38px !important;
+}
+.front-greinar .news-item .txt-wrap,
+.storv-wrapper .oll-storv {
+  background-color: #3A461E;
+}
+.page-heading,
+.more-news h3,
+.more-news .txt,
+.news-intro-text,
+.storv-wrapper h4,
+body,
+.storv-wrapper .storv-list .starv-element .starvsheiti {
+  color: #3A461E !important;
+}
+.more-news h3,
+.more-news-link,
+.front-greinar .more-news,
+.storv-wrapper .storv-list .starv-element .date {
+  color: #ED6B44 !important;
+}
+.front-greinar .more-news {
+  border-color: #ED6B44;
+}
+.topl-pagename {
+  color: #ED6B44;
+}
+.submen-wrapper li {
+  border-color: #ED6B44;
+}
+.submen-wrapper li:hover {
+  background-color: #ED6B44;
+}
+.submen-wrapper li:hover a .txt {
+  color: #FFF;
+}
+.submen-wrapper li:hover a .date {
+  color: #3A461E;
+}
+.front-greinar--featured .yvirskrift,
+.front-greinar--featured .introtext {
+  color: #3A461E !important;
+  font-size: 48 !important;
+}
+.front-greinar--featured .txt-wrap .more-news {
+  background-color: #3A461E !important;
+  border: none !important;
+  color: #FFF !important;
+  display: inline-block;
+  margin-top: 50px;
+}
+.search-icon:hover {
+  cursor: pointer;
+}
+.image-gallery {
+  display: none !important;
+}
+.magzine .mag-text {
+  max-width: 603px;
+  padding: 30px 0px;
+}
+.magzine .mag-text h3 {
+  font-family: Geologica;
+  font-size: 40px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 46px;
+}
+.magzine .mag-text .more-news {
+  background-color: #3A461E !important;
+  border: none !important;
+  color: #FFF;
+  display: inline-block;
+  margin-top: 50px;
+  padding: 14px 51px;
+  border-radius: 40px;
+}
+.newslist-filter .custom-select {
+  border-color: #3A461E;
+}
+.submen-wrapper li:hover a .txt {
+  color: #FFF !important;
+}
+.more-news-btn {
+  background-color: #3A461E !important;
+  border: none !important;
+  color: #FFF !important;
+  display: inline-block;
+  margin-top: 50px !important;
+  border-radius: 40px;
+  padding: 14px 50px;
+  position: relative;
+  transition: all 0.5s ease-in-out;
+  overflow: hidden;
+  z-index: 0;
+  font-family: geologica;
+}
+.more-news-btn::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 0%;
+  background-color: #8BB873;
+  border-radius: inherit;
+  transition: width 0.2s ease-in-out;
+  z-index: -1;
+}
+.more-news-btn:hover {
+  color: #3A461E !important;
+}
+.more-news-btn:hover::before {
+  width: 100%;
+}
+.hagtollist a.btn {
+  position: relative;
+  z-index: 1;
+  transition: all 0.7 ease-in-out;
+  overflow: hidden;
+  border: none;
+}
+.hagtollist a.btn:hover {
+  color: #3A461E;
+}
+.more-news-btn:after,
+.hagtollist a.btn:after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 0%;
+  background-color: #8BB873;
+  border-radius: inherit;
+  transition: width 0.2s ease-in-out;
+  z-index: -1;
+}
+.more-news-btn:hover::after,
+.hagtollist a.btn:hover::after {
+  width: 100%;
+}
+.bloglist {
+  margin-top: 30px;
+}
+.bloglist .more-news {
+  margin-top: 0px;
+}
+.bloglist .row .col-12 {
+  margin-bottom: 24px;
+}
+.bloglist .row.pt-60 {
+  padding-top: 40px !important;
+}
+.bloglist .news-item {
+  display: flex;
+  flex-direction: row;
+  margin-bottom: 24px;
+}
+.bloglist .news-item .img-wrap {
+  width: 180px;
+  border-radius: 10px 0px 0px 10px !important;
+  height: 100%;
+}
+.bloglist .news-item .img-wrap img {
+  border-radius: 10px 0px 0px 10px !important;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.bloglist .news-item .txt-wrap {
+  width: calc(100% - 180px);
+  border-radius: 0px 10px 10px 0px;
+  padding: 20px 20px 20px 25px;
+  background-color: #ED6B44;
+  position: relative;
+}
+.bloglist .news-item .txt-wrap .yvirskrift {
+  line-height: 110%;
+}
+.bloglist .news-item .txt-wrap .tema {
+  color: #3A461E;
+  /* H4 */
+  font-family: Geologica;
+  font-size: 20px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 26px;
+}
+.bloglist .news-item .txt-wrap svg {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  stroke: #FFF;
+}
+.submen-wrapper li::after,
+.submen-wrapper li a:after {
+  background: url("/icons/green-arrow-right.svg") no-repeat center / contain;
+  transform: translateY(-50%);
+}
+.gerst-limur a {
+  transition: all 0.5s ease-in-out;
+  background-color: transparent;
+  position: relative;
+  z-index: 1;
+}
+.gerst-limur a:hover {
+  color: #3A461E;
+}
+.gerst-limur a::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 0%;
+  background-color: #8BB873;
+  border-radius: inherit;
+  transition: width 0.2s ease-in-out;
+  z-index: -1;
+}
+.gerst-limur a:hover::before {
+  width: 100%;
+}
+.front-greinar--featured .txt-wrap .more-news:not(.submen-wrapper) {
+  transition: all 0.5s ease-in-out;
+}
+.front-greinar--featured .txt-wrap .more-news:hover {
+  background-color: #8BB873;
+  color: #3A461E;
+}
+.submen-wrapper::before {
+  display: none !important;
+}
+.front-greinar.standard .more-news::before {
+  background-color: #ED6B44 !important;
+}
+.most-read h3 {
+  margin-bottom: 50px;
+}
+.most-read .news-item .txt-wrap {
+  background-color: #3A461E;
+}
+.most-read .news-item .txt-wrap .tema {
+  color: #ED6B44;
+}
+.bloglist .news-item .txt-wrap .tema {
+  color: #3A461E !important;
+}
+.award-fullw-outer {
+  border-radius: 10px;
+  display: flex;
+  width: 100%;
+  gap: 50px;
+  align-items: center;
+  justify-content: left;
+  background-color: #f0f0f0;
+  flex-direction: row;
+  padding: 35px 30px;
+}
+.award-fullw-outer .img-wrap {
+  width: 600px;
+}
+.award-fullw-outer .img-wrap img {
+  width: 100%;
+  height: auto;
+}
+.award-fullw-outer .text-wrap {
+  padding-right: 100px;
+}
+.award-fullw-outer .text-wrap h3 {
+  font-family: Geologica;
+  font-size: 40px;
+  font-style: normal;
+  font-weight: 700;
+  margin-bottom: 28px;
+  line-height: 46px;
+}
+.award-fullw-outer .text-wrap .more-news {
+  background-color: #3A461E !important;
+  border: none !important;
+  color: #FFF;
+  display: inline-block;
+  margin-top: 50px;
+  padding: 12px 75px;
+  border-radius: 40px;
+  margin-top: 30px;
+  float: right;
+}
+.hagtollist {
+  margin-top: 120px;
+  margin-bottom: 120px;
+}
+.hagtollist .toprow {
+  margin-bottom: 80px !important;
+}
+.hagtollist h3 {
+  color: var(--Primer, #3A461E);
+  margin-bottom: 30px !important;
+  /* H2 */
+  font-family: Geologica;
+  font-size: 40px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 46px;
+  /* 115% */
+}
+.hagtollist img {
+  border-radius: 0px !important;
+  border: 1px solid #8BB873;
+}
+.hagtollist a.btn {
+  background-color: #3A461E !important;
+  margin-top: 30px;
+}
+.hagtollist a.btn-outline-secondary {
+  background-color: transparent !important;
+  color: #ED6B44;
+  border-color: #ED6B44;
+}
+.hagtollist h5 {
+  color: #3A461E;
+  margin-top: 30px;
+  /* H4 */
+  font-family: Geologica;
+  font-size: 20px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 26px;
+  /* 130% */
+}
+.editor-text a {
+  color: #ED6B44;
+}
+.submen-wrapper li a {
+  color: #3A461E;
+}
+.front-greinar--featured .txt-wrap .more-news,
+.more-news,
+.oll-storv {
+  transition: all 0.5s ease-in-out;
+  text-decoration: none;
+  z-index: 0;
+  position: relative;
+  overflow: hidden !important;
+  display: inline-block;
+}
+.front-greinar--featured .txt-wrap .more-news::before,
+.more-news::before,
+.oll-storv::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 0%;
+  /* start hidden */
+  background-color: #8BB873;
+  /* hover background color */
+  border-radius: inherit;
+  /* match the link */
+  transition: width 0.2s ease-in-out;
+  /* animate expansion */
+  z-index: -1;
+}
+.front-greinar--featured .txt-wrap .more-news:hover::before,
+.more-news:hover::before,
+.oll-storv:hover::before {
+  width: 100%;
+}
+.front-greinar--featured .txt-wrap .more-news:hover,
+.more-news:hover,
+.oll-storv:hover {
+  color: #3A461E !important;
+}
+.mag-text .intro {
+  padding: 10px 0px !important;
+}
+.mag-text .more-news {
+  margin-top: 20px !important;
+}
+.front-greinar .more-news {
+  transition: all 0.5s ease-in-out;
+  text-decoration: none;
+  position: relative;
+  overflow: hidden;
+  z-index: 0;
+}
+.front-greinar .more-news:hover {
+  color: #FFF !important;
+}
+.front-greinar .more-news::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 0%;
+  /* start hidden */
+  background-color: #ED6B44;
+  /* hover background color */
+  border-radius: inherit;
+  /* match the link */
+  transition: width 0.2s ease-in-out;
+  /* animate expansion */
+  z-index: -1;
+}
+.front-greinar .more-news:hover::before {
+  width: 100%;
+}
+.newsdate {
+  color: #ED6B44;
+}
+#leiting-summary {
+  color: #ED6B44 !important;
+}
+#leiting-left article a {
+  color: #3A461E !important;
+  font-family: Geologica;
+  font-size: 20px !important;
+  font-style: normal;
+  font-weight: 700;
+  line-height: normal;
+}
+#leiting-loadmore {
+  background-color: #3A461E;
+  margin-top: 20px;
+  margin-bottom: 100px;
+}
+#leiting-right .text-muted,
+#leiting-right-extra .text-muted {
+  color: #8BB873 !important;
+}
+#leiting-right-extra {
+  padding: 15px;
+  border-top: 1px solid #ED6B44 !important;
+}
+#leiting-right-extra a {
+  border: none !important;
+  border-radius: 0px !important;
+}
+.lfso__ghead * {
+  color: #8BB873 !important;
+}
+/* Backdrop tint (deep green like screenshot) */
+.lfso__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(21, 39, 19, 0.92);
+}
+.lfso__submit {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 46px;
+  height: 46px;
+  border-radius: 999px;
+  border: 0;
+  cursor: pointer;
+  background: #3a5d34;
+  color: #fff;
+}
+/* Close button top-right */
+.lfso__close {
+  position: fixed;
+  top: 20px;
+  right: 24px;
+  z-index: 2;
+  color: #9bd38c;
+  background: transparent;
+  border: 0;
+  font-size: 30px;
+  line-height: 1;
+  cursor: pointer;
+}
+.lfso__more {
+  margin-top: 2px;
+  justify-self: start;
+  color: #cde9c8;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 15px;
+}
+.more-news a {
+  position: relative;
+}
+.more-news a .lf-tag-inline {
+  position: absolute;
+  right: 50px;
+  top: 20px;
+  width: 50px;
+  height: auto;
+}
+.lfso__input {
+  color: #3A461E;
+}
+.offcanvas-header {
+  background-color: #3A461E !important;
+}
+@media (max-width: 767px) {
+  .hagtollist .more-news.small-green {
+    margin-top: 20px;
+    margin-bottom: 40px;
+  }
+  .award-fullw-outer .text-wrap h3 {
+    font-size: 28px !important;
+  }
+  .front-greinar.hagtol h3 {
+    font-size: 28px !important;
+    margin-bottom: 15px !important;
+  }
+  .front-greinar.mostread .bloglist .news-item .txt-wrap .yvirskrift {
+    font-size: 18px;
+  }
+  .front-greinar.front-greinar--featured .news-item .txt-wrap .yvirskrift,
+  .magzine .mag-text h3,
+  .front-greinar.hagtol h3 {
+    font-size: 32px !important;
+  }
+  .skulablad-logo {
+    margin-top: -3px;
+    line-height: 1em;
+  }
+  .skulablad-logo span {
+    font-size: 28px;
+  }
+  .nav-and-links {
+    gap: 12px;
+  }
+  .front-greinar--featured .news-item .txt-wrap {
+    background-color: transparent !important;
+    padding: 10px 0px !important;
+  }
+  .front-greinar--featured {
+    padding-bottom: 20px !important;
+  }
+  .mag-row {
+    padding-top: 50px;
+  }
+  .award-fullw-outer {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 60px 30px;
+    margin-top: 80px;
+  }
+  .award-fullw-outer .img-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .award-fullw-outer .img-wrap img {
+    width: 200px !important;
+    height: auto;
+  }
+  .award-fullw-outer .text-wrap {
+    padding: 0px;
+    width: 100%;
+  }
+  .award-fullw-outer .text-wrap h3 {
+    font-size: 30px;
+    line-height: 1.1em;
+  }
+  .newspaging-count {
+    text-align: left !important;
+    margin-top: 8px;
+    margin-left: 2px;
+  }
+  .submen-wrapper.more-news {
+    margin-top: 0px;
+  }
+  .lfso__group {
+    padding-bottom: 4px 0px;
+  }
+  .lfso__shell {
+    margin-top: -10px !important;
+  }
+  .hagtol .more-news {
+    margin-top: 0px !important;
+  }
+  .front-greinar.mostread .bloglist .news-item {
+    padding-bottom: 0px !important;
+  }
+  .front-greinar.mostread h3,
+  .front-greinar.bloggar h3 {
+    margin-bottom: 10px !important;
+  }
+}
+.dd-head--blue {
+  background-color: #3A461E;
+}
+.dd a.dd-link,
+.dd-link,
+.dd-panel:not(:first-child) .dd-parentrow .dd-link {
+  color: #3A461E;
+}
+.dd-righticon {
+  color: #ED6B44 !important;
+}
+.search-icon {
+  margin-right: 0px !important;
+}
+h3 {
+  color: #3A461E !important;
+}
+.front-greinar--featured .yvirskrift {
+  font-size: 46px !important;
+}
+li.active {
+  background-color: #ED6B44 !important;
+}
+.date {
+  color: #ED6B44 !important;
+}

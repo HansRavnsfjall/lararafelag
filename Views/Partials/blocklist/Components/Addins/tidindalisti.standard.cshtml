@@ -1,0 +1,160 @@
+@using System
+@using System.Linq
+@using System.Collections.Generic
+@using Umbraco.Cms.Core.Models.Blocks
+@using Umbraco.Cms.Core.Models
+@using Umbraco.Extensions
+@using ContentModels = Umbraco.Cms.Web.Common.PublishedModels
+@inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage<BlockListItem>
+
+@{
+    // ✅ Get the current page (container) even inside a Block view
+    var currentPage = Umbraco.AssignedContentItem; // IPublishedContent
+
+    // Site roots
+    var skulabladRoot     = Guid.Parse("81f22605-925d-4848-bb38-b886783b2083");
+    var laerarafelagRoot  = Guid.Parse("535f7cdc-9c1e-49b9-a115-f79d553b9984");
+
+    var isSiteSkulablad = currentPage?.Root()?.Key == skulabladRoot;
+
+    // Helper: should we show the LF tag for a given item?
+    Func<Umbraco.Cms.Core.Models.PublishedContent.IPublishedContent, bool> showLfTag =
+        node => isSiteSkulablad && (node?.Root()?.Key == laerarafelagRoot);
+}
+
+@{
+    // Cast the block content
+    var content = (ContentModels.Tidindalisti)Model.Content;
+
+    // How many items to show (from GUI)
+    var numberToShow = content.TalAvTidindum;
+    var takeCount = numberToShow > 0 ? numberToShow : int.MaxValue;
+
+    // Dynamic offset (from GUI Number property alias: startFrom)
+    var startFrom = content.Value<int?>("startFrom") ?? 0;
+    if (startFrom < 0) startFrom = 0; // safety
+
+    // Selected sources (MNTP): IEnumerable<IPublishedContent>
+    var sources = content.Sources;
+
+    var now = DateTime.UtcNow;   // use UTC/GMT
+
+    // Collect descendants of type "tidindaelement", only visible, sort by dagfesting desc, skip/take
+    var elements = Enumerable.Empty<Umbraco.Cms.Core.Models.PublishedContent.IPublishedContent>();
+
+    if (sources != null && sources.Any())
+    {
+        elements = sources
+            .Where(parent => parent != null)
+            .SelectMany(parent => parent
+                .DescendantsOfType("tidindaelement")
+                .Where(x => x.IsVisible()))
+            .DistinctBy(x => x.Id)
+            .Select(x => new
+            {
+                Node = x,
+                Date = x.Value<DateTime?>("dagfesting") ?? DateTime.MinValue
+            })
+            .Where(x => x.Date <= now)                     // only past/present dates
+            .OrderByDescending(x => x.Date)                // newest first
+            .Skip(startFrom)
+            .Take(takeCount)
+            .Select(x => x.Node)
+            .ToList();
+    }
+
+    // ✅ De-dupe: register ALL IDs from this renderer for this HTTP request (before the foreach)
+    var renderedIds = Context.Items["RenderedPostIds"] as HashSet<int>;
+    if (renderedIds is null)
+    {
+        renderedIds = new HashSet<int>();
+        Context.Items["RenderedPostIds"] = renderedIds;
+    }
+    renderedIds.UnionWith(elements.Select(e => e.Id));
+}
+
+<section class="front-greinar standard  ">
+    <div class="container">
+        <div class="row">
+            @if (elements.Any())
+            {
+                foreach (var item in elements)
+                {
+                    var title = item.Name;
+                    var intro = item.Value<string>("inngangstekstur");
+                    var date  = item.Value<DateTime?>("dagfesting");
+                    string tema = "Tíðindi";
+                    var image = item.Value<MediaWithCrops>("mynd");
+                    var link  = item.Url();
+                    var target = @showLfTag(item)? "_blank" : "_self";
+
+                    <div class="col-12 col-lg-6">
+                        <a target="@target" href="@link" class="news-item hover-shadow rounded10">
+                            <div class="img-wrap">
+                                @if (image != null)
+                                {
+                                    // Try crop alias, fall back to original
+                                    var cropUrl = image.GetCropUrl("NewsListImage");
+                                    if (string.IsNullOrWhiteSpace(cropUrl))
+                                    {
+                                        cropUrl = image.Url() ?? "";
+                                    }
+                                    if (!string.IsNullOrWhiteSpace(cropUrl))
+                                    {
+                                        <img src="@cropUrl?format=webp" alt="@title" />
+                                    }
+                                }
+                            </div>
+
+                            <div class="txt-wrap relative">
+                             @* ✅ LF badge when item is from Lærarafelagið and current site is Skúlablaðið *@
+                                    @if (showLfTag(item))
+                                    {
+                                        <img src="/icons/lf-tag.svg" title="Tíðindi frá Lærarafelagnum" alt="LF" class="lf-tag-standard" />
+                                    }
+                                @if (!string.IsNullOrWhiteSpace(tema))
+                                {
+                                    <div class="tema">@tema</div>
+                                }
+
+                                <div class="yvirskrift">
+                                    @title
+                                   
+                                </div>
+
+                                @if (date.HasValue && date.Value != default)
+                                {
+                                    <div class="date">@date.Value.ToString("dd. MMMM yyyy")</div>
+                                }
+
+                                @if (!string.IsNullOrEmpty(intro))
+                                {
+                                    var truncatedIntro = intro.Length > 168 
+                                        ? intro.Substring(0, 168) + "…"
+                                        : intro;
+
+                                    <div class="introtext">@truncatedIntro</div>
+                                }
+                            </div>
+                        </a>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="col-12">
+                    <p>Onki funnið.</p>
+                </div>
+            }
+        </div>
+
+        <div class="row pt-60">
+            <div class="col-12 text-center">
+             
+                    <a class="more-news" href="/tidindi">Øll tíðindi</a>
+               
+               
+            </div>
+        </div>
+    </div>
+</section>

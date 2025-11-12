@@ -1,0 +1,181 @@
+﻿@using System
+@using System.Linq
+@using System.Globalization
+@using Umbraco.Extensions
+@using Umbraco.Cms.Core.Models.PublishedContent
+@using Umbraco.Cms.Core.Web
+@inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage<ContentModels.Tidindaelement>
+@using ContentModels = Umbraco.Cms.Web.Common.PublishedModels;
+
+@inject IUmbracoContextAccessor UmbracoContextAccessor
+
+@{
+    Layout = "Master";
+
+    // --- Detect Umbraco Preview Mode ---
+    var isPreview = UmbracoContextAccessor.TryGetUmbracoContext(out var umbCtx) && umbCtx?.InPreviewMode == true;
+
+    // --- UTC helpers ---
+    var nowUtc = DateTime.UtcNow;
+    Func<IPublishedContent, DateTime> getDateUtc = x =>
+    {
+        var d = x.Value<DateTime?>("dagfesting") ?? x.CreateDate;
+        if (d.Kind == DateTimeKind.Utc) return d;
+        if (d.Kind == DateTimeKind.Local) return d.ToUniversalTime();
+        // Unspecified: assume as-is (Umbraco typically stores UTC)
+        return d;
+    };
+
+    // Current item fields
+    var currentKey      = Model.Key;   // exclude current by Key (GUID)
+    var yvirskrift      = Model.Name;
+    var tekstur         = Model.Tekstur;
+    var inngangstekstur = Model.Inngangstekstur;
+    var mynd            = Model.Mynd;
+    var myndUrl         = mynd?.Url();
+    var dato            = Model.Value<DateTime?>("dagfesting");
+
+    // Current item date (UTC normalized)
+    var articleDateUtc = getDateUtc(Model);
+
+    // If article is scheduled in the future => 404 (but NOT in preview)
+    var isFuture = articleDateUtc > nowUtc;
+    if (isFuture && !isPreview)
+    {
+        Context.Response.StatusCode = 404;
+        // Optional: prevent indexing
+        Context.Response.Headers["X-Robots-Tag"] = "noindex, nofollow";
+    }
+
+    // STRICT: walk UP to the nearest ancestor with alias "newsListPage"
+    IPublishedContent? anchor = Model.Parent; // start at parent
+    while (anchor != null && !string.Equals(anchor.ContentType.Alias, "newsListPage", StringComparison.OrdinalIgnoreCase))
+    {
+        anchor = anchor.Parent;
+    }
+
+    // If found, prepare pool + UI text now (no fallbacks)
+    IEnumerable<IPublishedContent> pool = Enumerable.Empty<IPublishedContent>();
+    string temaHeding="tíðindi";
+    string sidebarHeading = "Onnur tíðindi";
+    string moreNewsUrl = "#";
+    string moreNewsText = "Fleiri tíðindi";
+
+    if (anchor != null)
+    {
+        pool = anchor.DescendantsOfType("tidindaelement");
+
+        // Sidebar heading + bottom link text come from the anchor
+        sidebarHeading = anchor.Value<string>("yvirskrift")?.Trim() ?? sidebarHeading;
+        temaHeding = anchor.Value<string>("temaHeding")?.Trim() ?? temaHeding;
+        moreNewsUrl    = anchor.Url();
+        moreNewsText   = anchor.Value<string>("teksturALeinki")?.Trim() ?? moreNewsText;
+    }
+
+    // Build selection:
+    // - Normal: only <= now UTC
+    // - Preview: include future items so editors see upcoming content
+    var poolFiltered = pool.Where(x => x.IsVisible()
+        && x.Value<bool?>("hideInMenu") != true
+        && x.Key != currentKey
+        && (isPreview || getDateUtc(x) <= nowUtc));
+
+    var selection = poolFiltered
+        .OrderByDescending(getDateUtc)
+        .Take(6)
+        .ToList();
+}
+
+@if (isFuture && !isPreview)
+{
+    <!-- Minimal 404 presentation (status already set above) -->
+    <section class="content">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-8">
+                    <h1>404 – Síða ikki funnin</h1>
+                    <p>Hendan síðan er ikki tøk.</p>
+                </div>
+                <div class="col-md-4"></div>
+            </div>
+        </div>
+    </section>
+}
+else
+{
+<section class="content">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-8">
+
+               
+
+                <h3 class="topl-pagename">@temaHeding</h3>
+                <h1 class="page-heading">@yvirskrift</h1>
+                @if (dato.HasValue && dato.Value != default)
+                {
+                    <div class="newsdate">@dato.Value.ToString("dd.MM.yyyy")</div>
+                }
+
+                @if (!string.IsNullOrEmpty(myndUrl))
+                {
+                    <div class="news-image-wrap">
+                        <img src="@myndUrl?format=webp" alt="" />
+                    </div>
+                }
+
+                <div class="news-intro-text">
+                    @inngangstekstur
+                </div>
+
+                <div class="page-text editor-text">
+                    @tekstur
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                @if (anchor == null)
+                {
+                    @* Hard error (strict): no ancestor with alias "newsListPage" above this item *@
+                    <div style="border:2px solid #c00;padding:12px;margin:16px 0;background:#fff4f4;color:#900;">
+                        <strong>Configuration error:</strong> Required ancestor with alias <code>newsListPage</code> was not found in the parent chain.
+                        <div style="margin-top:6px;font-size:.9em;color:#600;">
+                            Ancestor trail:
+                            @string.Join(" &rsaquo; ",
+                                Model.AncestorsOrSelf().Select(a => a.Name() + "[" + a.ContentType.Alias + "]").Reverse())
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="submen-wrapper more-news">
+                        <h3>@sidebarHeading</h3>
+                        <ul>
+                            @foreach (var item in selection)
+                            {
+                                var title = item.Value<string>("yvirskrift");
+                                if (string.IsNullOrWhiteSpace(title)) title = item.Name();
+
+                                var date = item.Value<DateTime?>("dagfesting");
+                                var displayDate = (date ?? item.CreateDate).ToString("dd.MM.yyyy", CultureInfo.InvariantCulture);
+                                var link = item.Url();
+
+                                <li>
+                                    <a href="@link">
+                                        <div class="date">@displayDate</div>
+                                        <div class="txt">@title</div>
+                                    </a>
+                                </li>
+                            }
+                        </ul>
+
+                        <a class="more-news-link" href="@moreNewsUrl">@moreNewsText</a>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</section>
+}
+
+@await Html.PartialAsync("Partials/_TrackPageView")

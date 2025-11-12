@@ -1,0 +1,65 @@
+@using Umbraco.Cms.Core.Models.Blocks
+@using ContentModels = Umbraco.Cms.Web.Common.PublishedModels
+@inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage<BlockListItem<ContentModels.OftaSpurdirSpurningar>>
+
+@{
+    var content = Model.Content;
+}
+
+@if (content?.Harmonika != null && content.Harmonika.Any())
+{
+    var items = content.Harmonika.ToList();
+   <div><div class="container" style="border:none!important;">
+        <div class="accordion" id="accordionElement">
+            @for (var i = 0; i < items.Count; i++)
+            {
+                var block = items[i];
+                var job = block.Content as ContentModels.OSselement;
+                var yvirskrift = job?.Yvirskrift;
+                var tekstur = job?.Tekstur;
+                var link = job?.Leinki;
+
+                var headingId = $"heading-{i}";
+                var collapseId = $"collapse-{i}";
+
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="@headingId">
+                        <button class="accordion-button collapsed d-flex justify-content-between align-items-center"
+                                type="button"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#@collapseId"
+                                aria-expanded="false"
+                                aria-controls="@collapseId">
+
+                            <span>@yvirskrift</span>
+
+                            <span class="accordion-icon ms-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="33" viewBox="0 0 28 33" fill="none">
+                                  <path d="M14.0003 2.79169L14.0003 30.2084M14.0003 30.2084L25.667 16.5M14.0003 30.2084L2.33366 16.5" 
+                                        stroke="#DA6B6D" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </span>
+                        </button>
+                    </h2>
+                    <div id="@collapseId"
+                         class="accordion-collapse collapse"
+                         aria-labelledby="@headingId"
+                         data-bs-parent="#accordionElement">
+                        <div class="accordion-body">
+                            @Html.Raw(tekstur)
+                            @if (link != null)
+                            {
+                                <p class="mt-2">
+                                    <a href="@link.Url" target="@(link.Target ?? "_self")" rel="noopener">
+                                        @link.Name
+                                    </a>
+                                </p>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+    </div>
+}

@@ -1,0 +1,72 @@
+@using Umbraco.Cms.Core.Models.Blocks
+@using Umbraco.Extensions               
+@using Lararafelagid.Controllers
+@inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage<BlockListItem>
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+
+@{
+    var currentPage = Umbraco.AssignedContentItem; // the routed page (needed for ufprt)
+    var success = (TempData["ContactForm.Success"] as string) == "true";
+    var failed  = (TempData["ContactForm.Success"] as string) == "false";
+
+    // Repopulate after failed POST
+    string val(string key) => Context?.Request?.HasFormContentType == true
+        ? (Context.Request.Form[key].ToString() ?? string.Empty)
+        : string.Empty;
+}
+
+<div class="block block-contact-form">
+    @if (success)
+    {
+        <div class="alert alert-success" role="alert">Takk! Boðini eru send til okkum.</div>
+    }
+    else
+    {
+        @if (failed)
+        {
+            <div class="alert alert-danger" role="alert">Tað eydnaðist ikki at senda. Vinarliga royn aftur.</div>
+        }
+
+        @* Overload: (action, currentPage, additionalRouteVals, method, isAjax)
+           No htmlAttributes here — wrap inner content for styling. *@
+        @using (Html.BeginUmbracoForm<ContactSurfaceController>(
+                    "Submit",
+                    currentPage,
+                    null,
+                    FormMethod.Post,
+                    false))
+        {
+            @Html.AntiForgeryToken()
+
+            <div class="contact-form__form" novalidate="novalidate">
+                <div class="mb-3">
+                    <label for="cf-name" class="form-label">Navn</label>
+                    <input id="cf-name" name="Name" value="@val("Name")" class="form-control" />
+                </div>
+
+                <div class="mb-3">
+                    <label for="cf-email" class="form-label">Teldupostur</label>
+                    <input id="cf-email" name="Email" value="@val("Email")" class="form-control" />
+                </div>
+
+                <div class="mb-3">
+                    <label for="cf-phone" class="form-label">Telefon</label>
+                    <input id="cf-phone" name="Phone" value="@val("Phone")" class="form-control" />
+                </div>
+
+                <div class="mb-3">
+                    <label for="cf-message" class="form-label">Boð</label>
+                    <textarea id="cf-message" name="Message" rows="5" class="form-control">@val("Message")</textarea>
+                </div>
+
+                <!-- Honeypot -->
+                <div style="position:absolute; left:-5000px;" aria-hidden="true">
+                    <label for="cf-website">Website</label>
+                    <input id="cf-website" name="Website" autocomplete="off" tabindex="-1" />
+                </div>
+
+                <button type="submit" class="more-news-btn">Send</button>
+            </div>
+        }
+    }
+</div>

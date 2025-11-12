@@ -1,0 +1,36 @@
+@using Lararafelagid.Models
+@model ContactFormViewModel
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+
+<div class="mb-3">
+    <label asp-for="Name" class="form-label"></label>
+    <input asp-for="Name" class="form-control" />
+    <span asp-validation-for="Name" class="text-danger"></span>
+</div>
+
+<div class="mb-3">
+    <label asp-for="Email" class="form-label"></label>
+    <input asp-for="Email" class="form-control" />
+    <span asp-validation-for="Email" class="text-danger"></span>
+</div>
+
+<div class="mb-3">
+    <label asp-for="Phone" class="form-label"></label>
+    <input asp-for="Phone" class="form-control" />
+    <span asp-validation-for="Phone" class="text-danger"></span>
+</div>
+
+<div class="mb-3">
+    <label asp-for="Message" class="form-label"></label>
+    <textarea asp-for="Message" rows="5" class="form-control"></textarea>
+    <span asp-validation-for="Message" class="text-danger"></span>
+</div>
+
+<!-- Honeypot -->
+<div style="position:absolute; left:-5000px;" aria-hidden="true">
+    <label asp-for="Website">Website</label>
+    <input asp-for="Website" autocomplete="off" tabindex="-1" />
+</div>
+
+<button type="submit" class="btn more-news btn-primary">Send</button>
+

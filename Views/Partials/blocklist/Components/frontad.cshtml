@@ -1,0 +1,50 @@
+@using System.Linq
+@using Umbraco.Extensions
+@using Umbraco.Cms.Core.Models
+@using Umbraco.Cms.Core.Models.PublishedContent
+@using Umbraco.Cms.Core.Models.Blocks
+@using ContentModels = Umbraco.Cms.Web.Common.PublishedModels
+@inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage<BlockListItem<ContentModels.Frontad>>
+
+@{
+    var content = Model.Content; // typed: ContentModels.Frontad
+
+    // --- Image (works for single or multiple media picker) ---
+    MediaWithCrops? pickedImage = content.Value<MediaWithCrops>("mynd")
+        ?? content.Value<IEnumerable<MediaWithCrops>>("mynd")?.FirstOrDefault();
+
+    var imageUrl = pickedImage?.Url();
+
+    // --- Heading / Text (typed from ModelsBuilder) ---
+    var heading = content.Yvirskrift;
+    var text = content.Tekstur;
+
+    // --- Link (typed Link) ---
+    Link? link = content.Leinki; // if multiple: content.Leinki?.FirstOrDefault()
+    var href = link?.Url ?? "#";
+    var target = link?.Target;
+}
+
+<section class="bokadeildin-add">
+    <div class="container">
+        <div class="row">
+            <div class="col-12">
+                <a href="@href" target="@target" class="ad-wrapper">
+                    @if (!string.IsNullOrWhiteSpace(imageUrl))
+                    {
+                        <img src="@imageUrl" alt="@pickedImage?.Name" loading="lazy" />
+                    }
+                    <div class="ad-splash">
+                        @if (!string.IsNullOrWhiteSpace(heading))
+                        {
+                            <h4>@heading</h4>
+                        }
+                        <div class="txt">
+                            @text
+                        </div>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </div>
+</section>

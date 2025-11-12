@@ -1,0 +1,32 @@
+@using Umbraco.Cms.Core.Models.PublishedContent
+@using Umbraco.Cms.Core.Web
+@inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage
+
+@inject Lararafelagid.Services.MostViewed.IViewCountService ViewCountService
+@inject IUmbracoContextAccessor UmbracoContextAccessor
+
+@{
+    var content = Model as IPublishedContent;
+    if (content == null) { return; }
+
+    var path = Context?.Request?.Path.Value ?? string.Empty;
+    var isBackOffice = path.StartsWith("/umbraco", StringComparison.OrdinalIgnoreCase);
+
+    // ✅ Only track Tidindaelement AND only when URL contains "/tidindi/"
+    var isTidinda = content.ContentType.Alias.Equals("tidindaelement", StringComparison.OrdinalIgnoreCase);
+    var underTidindi = path.IndexOf("/tidindi/", StringComparison.OrdinalIgnoreCase) >= 0;
+    if (!isTidinda || !underTidindi) { return; }
+
+    // Preview detection
+    var isPreview = false;
+    if (UmbracoContextAccessor.TryGetUmbracoContext(out var umbCtx) && umbCtx is not null)
+    {
+        isPreview = umbCtx.InPreviewMode;
+    }
+
+    // Bot & IP info
+    var ua = Context?.Request?.Headers["User-Agent"].ToString();
+    var ip = Context?.Connection?.RemoteIpAddress?.ToString();
+
+    ViewCountService.Track(content.Id, ua, ip, isBackOffice, isPreview);
+}

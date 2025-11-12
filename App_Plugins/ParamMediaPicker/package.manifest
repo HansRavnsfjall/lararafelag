@@ -1,0 +1,24 @@
+{
+  "propertyEditors": [
+    {
+      "alias": "Hans.ParamMediaPicker",
+      "name": "Media Picker (macro param, fixed start)",
+      "isParameterEditor": true,
+      "icon": "icon-picture",
+      "group": "pickers",
+      "editor": {
+        "view": "/App_Plugins/ParamMediaPicker/view.html",
+        "valueType": "TEXT"
+      },
+      "defaultConfig": {
+        "multiple": false,
+        "onlyImages": true,
+        "startNodeUdi": "umb://media/463174e4-8c6b-4e42-b885-338b2c900249",
+        "startNodeId": null
+      }
+    }
+  ],
+  "javascript": [
+    "/App_Plugins/ParamMediaPicker/controller.js"
+  ]
+}

@@ -1,0 +1,17 @@
+<!-- Directory.Build.props -->
+<Project>
+  <PropertyGroup>
+    <!-- Keep publish outputs from becoming inputs -->
+    <DefaultItemExcludes>publish-out/**;artifacts/**;$(DefaultItemExcludes)</DefaultItemExcludes>
+  </PropertyGroup>
+
+  <!-- (Optional) also exclude from Razor discovery explicitly -->
+  <ItemGroup>
+    <Content Remove="publish-out/**" />
+    <Content Remove="artifacts/**" />
+    <None Remove="publish-out/**" />
+    <None Remove="artifacts/**" />
+    <Compile Remove="publish-out/**" />
+    <Compile Remove="artifacts/**" />
+  </ItemGroup>
+</Project>

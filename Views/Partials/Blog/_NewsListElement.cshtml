@@ -1,0 +1,50 @@
+@using System
+@using System.Linq
+@using System.Globalization
+@using Umbraco.Cms.Core.Models.PublishedContent
+@using Umbraco.Extensions
+@inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage<IEnumerable<IPublishedContent>>
+@{
+    var fo = CultureInfo.GetCultureInfo("fo-FO");
+    var posts = Model ?? Enumerable.Empty<IPublishedContent>();
+    
+    // Current site (page we're on)
+    var currentSiteRootKey = Umbraco.AssignedContentItem?.Root()?.Key ?? Guid.Empty;
+    
+    // GUIDs
+    var skulabladRoot   = Guid.Parse("81f22605-925d-4848-bb38-b886783b2083");
+    var laerarafelagRoot = Guid.Parse("535f7cdc-9c1e-49b9-a115-f79d553b9984");
+    
+    bool isSkulablad = currentSiteRootKey == skulabladRoot;
+    
+    Guid ResolveItemRootKey(IPublishedContent c)
+    {
+        // Use the Root() method which is more reliable
+        var rootNode = c?.Root();
+        return rootNode?.Key ?? Guid.Empty;
+    }
+}
+@foreach (var post in posts)
+{
+    var title = post.Value<string>("yvirskrift") ?? post.Name;
+    var intro = post.Value<string>("inngangstekstur");
+    var date = post.Value<DateTime?>("dagfesting") ?? post.CreateDate;
+    
+    var itemRootKey = ResolveItemRootKey(post);
+    bool showLfTag = isSkulablad && itemRootKey == laerarafelagRoot;
+    var target=@showLfTag ? "_blank" : "_self";
+    
+    <li>
+        <a target="@target" href="@post.Url()">
+            <div class="date">@date.ToString("dd.MM.yyyy", fo)</div>
+            <div class="txt">
+                @title
+            </div>
+             @if (showLfTag)
+                {
+                    <img src="/icons/lf-tag.svg" title="Tíðindi frá lærarafelagnum" alt="LF" class="lf-tag-inline" />
+                }
+        </a>
+    </li>
+}
+<!-- verður loadað í NewslistPage.cshtml view -->

@@ -1,0 +1,51 @@
+@using ContentModels = Umbraco.Cms.Web.Common.PublishedModels
+@using Umbraco.Cms.Core.Models.Blocks
+@inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage<BlockListItem>
+
+@{
+    // Cast this block’s content to your strongly typed element model
+    var content = (ContentModels.ForsidaLinks1)Model.Content;
+
+    // Nested block list property
+    var blocks = content.Leinkilisti; // BlockListModel
+    var mynd = content.Mynd;
+    var myndUrl = mynd?.Url();
+}
+
+<section class="link-and-awards limasection">
+    <div class="container">
+        <div class="row">
+            <!-- LINKS: second on mobile, first from md+ -->
+            <div class="col-12 col-md-6 order-2 order-md-1">
+                <div class="links">
+                    @if (blocks != null && blocks.Count > 0)
+                    {
+                        foreach (var block in blocks)
+                        {
+                            if (block.Content.ContentType.Alias == "leinki")
+                            {
+                                var heading = block.Content.Value<string>("leinkiYvirskrift") ?? "";
+                                var text = block.Content.Value<string>("leinkiTekstur") ?? "";
+                                var link = block.Content.Value<Umbraco.Cms.Core.Models.Link>("leinkiLeinki");
+                                var url  = link?.Url ?? "";
+
+                                <a class="bluebox-link hover-shadow" href="@url" target="_blank">
+                                    <pre>@heading</pre>
+                                    <linktext>@text</linktext>
+                                    <img src="~/icons/external-link.svg" />
+                                </a>
+                            }
+                        }
+                    }
+                </div>
+            </div>
+
+            <!-- IMAGE: first on mobile, second from md+ -->
+            <div class="col-12 col-md-6 order-1 order-md-2">
+                <div class="limatilbod-img-wrapper">
+                    <img src="@myndUrl" alt="" />
+                </div>
+            </div>
+        </div>
+    </div>
+</section>

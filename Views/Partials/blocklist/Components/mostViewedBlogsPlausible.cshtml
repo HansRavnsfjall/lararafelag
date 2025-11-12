@@ -1,0 +1,306 @@
+@using System
+@using System.Linq
+@using System.Collections.Generic
+@using Microsoft.Extensions.Configuration
+@using Umbraco.Cms.Core.Models
+@using Umbraco.Cms.Core.Models.Blocks
+@using Umbraco.Cms.Core.Models.PublishedContent
+@using Umbraco.Cms.Core.Web
+@using Umbraco.Extensions
+@using ContentModels = Umbraco.Cms.Web.Common.PublishedModels
+@using Lararafelagid.Services
+@inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage<BlockListItem<ContentModels.MostViewedBlogs>>
+
+@inject PlausibleService Plausible
+@inject IUmbracoContextAccessor CtxAccessor
+@inject IConfiguration Config
+
+@functions {
+    private static string NormalizePath(string urlOrPath)
+    {
+        if (string.IsNullOrWhiteSpace(urlOrPath)) return "/";
+        var s = urlOrPath.Trim();
+
+        // remove scheme + host if present
+        if (s.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+            s.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            var idx = s.IndexOf('/', s.IndexOf("//", StringComparison.Ordinal) + 2);
+            s = idx >= 0 ? s[(idx)..] : "/";
+        }
+
+        // strip query/hash
+        var q = s.IndexOf('?'); if (q >= 0) s = s[..q];
+        var h = s.IndexOf('#'); if (h >= 0) s = s[..h];
+
+        // ensure leading slash, remove trailing slash (except root)
+        if (!s.StartsWith('/')) s = "/" + s;
+        if (s.Length > 1 && s.EndsWith('/')) s = s.TrimEnd('/');
+
+        return s;
+    }
+
+    private IPublishedContent? ResolveByPath(string path)
+    {
+        if (!CtxAccessor.TryGetUmbracoContext(out var umbCtx) || umbCtx?.Content == null)
+            return null;
+
+        // 1) Fast route match
+        var node = umbCtx.Content.GetByRoute(path);
+        if (node != null) return node;
+
+        // 2) Variants: try each culture (note named `culture:` param)
+        var cultures = new List<string>();
+        foreach (var root in umbCtx.Content.GetAtRoot())
+            foreach (var c in root.Cultures)
+                cultures.Add(c.Key);
+
+        foreach (var cul in cultures.Distinct())
+        {
+            node = umbCtx.Content.GetByRoute(path, culture: cul);
+            if (node != null) return node;
+        }
+
+        // 3) Fallback: compare relative Url() without trailing slash
+        var target = path.TrimEnd('/');
+        foreach (var root in umbCtx.Content.GetAtRoot())
+        {
+            var hit = root
+                .DescendantsOrSelf()
+                .FirstOrDefault(x => x.Url(mode: UrlMode.Relative).TrimEnd('/')
+                    .Equals(target, StringComparison.OrdinalIgnoreCase));
+            if (hit != null) return hit;
+        }
+
+        return null;
+    }
+
+    private IEnumerable<IPublishedContent> LatestContentFallback(int take)
+    {
+        if (!CtxAccessor.TryGetUmbracoContext(out var umbCtx) || umbCtx?.Content == null)
+            return Enumerable.Empty<IPublishedContent>();
+
+        var now = DateTime.UtcNow;
+
+        // Prefer your news doc type; include blogPost as secondary option.
+        var all = umbCtx.Content
+            .GetAtRoot()
+            .SelectMany(r => r.DescendantsOrSelf())
+            .Where(x => x.IsVisible() && (
+                x.ContentType.Alias.Equals("tidindaelement", StringComparison.OrdinalIgnoreCase) ||
+                x.ContentType.Alias.Equals("blogPost", StringComparison.OrdinalIgnoreCase)
+            ))
+            .Select(x => new { Node = x, Date = x.Value<DateTime?>("dagfesting") ?? x.UpdateDate })
+            .Where(x => x.Date <= now)
+            .OrderByDescending(x => x.Date)
+            .Take(take)
+            .Select(x => x.Node)
+            .ToList();
+
+        return all;
+    }
+}
+
+@{
+    var content = Model.Content;
+    
+    // Editor-configurable properties on your MostViewedBlogs element
+    var numberToShow   = content.Value<int?>("talAvTidindum") ?? 6;
+    var startFrom      = Math.Max(0, content.Value<int?>("startFrom") ?? 0);
+    var pathStartsWith = content.Value<string>("pathStartsWith");
+    if (!string.IsNullOrWhiteSpace(pathStartsWith) && !pathStartsWith!.StartsWith("/"))
+        pathStartsWith = "/" + pathStartsWith;
+
+    var request = Context?.Request;
+    var requestHost = request?.Host.Host ?? ""; // host WITHOUT port
+    var isLocal = requestHost.Equals("localhost", StringComparison.OrdinalIgnoreCase) || requestHost.Equals("127.0.0.1");
+    var filteredHost = isLocal ? null : requestHost;   // null on localhost => no host filter
+    // use this:
+var period = isLocal ? "12mo" : "30d";
+
+    var currentScheme = request?.Scheme ?? "https";
+    var mvDebug = request?.Query?.ContainsKey("mvdebug") == true;
+
+    var siteId = Config["Plausible:SiteId"] ?? "(missing)";
+    string? apiError = null;
+    bool usedFallbackQuery = false;
+
+    // ---------- 1) Primary Plausible call (host-filtered unless localhost) ----------
+    List<PlausibleResult> plausibleRows;
+    try
+    {
+        plausibleRows = await Plausible.GetMostViewedPages(
+            limit: Math.Max(numberToShow + startFrom + 10, numberToShow),
+            period: period,
+            hostname: filteredHost
+        );
+    }
+    catch (Exception ex)
+    {
+        apiError = ex.Message;
+        plausibleRows = new List<PlausibleResult>();
+    }
+
+    var rawCountPrimary = plausibleRows.Count;
+
+    // ---------- 2) Fallback Plausible call if the primary returned zero ----------
+    if (plausibleRows.Count == 0)
+    {
+        try
+        {
+            var alt = await Plausible.GetMostViewedPages(
+                limit: Math.Max(numberToShow + startFrom + 10, numberToShow),
+                period: "all",   // widest net
+                hostname: null   // no host filter
+            );
+
+            if (alt.Count > 0)
+            {
+                plausibleRows = alt;
+                usedFallbackQuery = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            apiError = (apiError == null) ? ex.Message : apiError + " | " + ex.Message;
+        }
+    }
+
+    var rawCountFinal = plausibleRows.Count;
+
+    // ---------- 3) Normalize + optional prefix filter (accept culture-prefixed too) ----------
+    var filtered = plausibleRows
+        .Select(r => new { Path = NormalizePath(r.Page), r.Visitors })
+        .Where(x =>
+        {
+            if (string.IsNullOrWhiteSpace(pathStartsWith))
+                return true;
+
+            if (x.Path.StartsWith(pathStartsWith!, StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            // culture-prefixed support (/fo/... or /en/...) when filter has no culture
+            if (x.Path.Length > 4 && x.Path[0] == '/' && x.Path[3] == '/')
+            {
+                var withoutCulture = x.Path[3..];
+                if (!withoutCulture.StartsWith("/")) withoutCulture = "/" + withoutCulture;
+                return withoutCulture.StartsWith(pathStartsWith!, StringComparison.OrdinalIgnoreCase);
+            }
+            return false;
+        })
+        .ToList();
+
+    // ---------- 4) Map to nodes OR fallback to absolute links ----------
+    var renderItems = new List<(string Href, string Title, int Visitors, IPublishedContent? Node)>();
+    foreach (var row in filtered)
+    {
+        var node = ResolveByPath(row.Path);
+        if (node != null)
+        {
+            renderItems.Add((node.Url(), node.Name, row.Visitors, node));
+        }
+        else
+        {
+            var href = (row.Path.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                        row.Path.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                        ? row.Path
+                        : $"{currentScheme}://{(string.IsNullOrWhiteSpace(requestHost) ? "localhost" : requestHost)}{row.Path}";
+            var last = row.Path.TrimEnd('/').Split('/').LastOrDefault() ?? row.Path;
+            var title = string.IsNullOrWhiteSpace(last) ? row.Path : char.ToUpperInvariant(last[0]) + last[1..].Replace("-", " ");
+            renderItems.Add((href, title, row.Visitors, null));
+        }
+    }
+
+    // Distinct by URL, then skip/take
+    var elements = renderItems
+        .GroupBy(x => x.Href, StringComparer.OrdinalIgnoreCase)
+        .Select(g => g.First())
+        .Skip(startFrom)
+        .Take(numberToShow)
+        .ToList();
+
+    // ---------- 5) Hard fallback to latest content if STILL empty ----------
+    if (!elements.Any())
+    {
+        var fallbackNodes = LatestContentFallback(numberToShow).ToList();
+        elements = fallbackNodes
+            .Select(n => (Href: n.Url(), Title: n.Name, Visitors: 0, Node: n))
+            .ToList();
+    }
+}
+
+@if (mvDebug)
+{
+    <div style="background:#111;color:#fff;padding:10px;margin:10px 0;border-radius:6px;font-size:.95rem;line-height:1.3">
+        <strong>MV Debug</strong><br />
+        siteId=<code>@siteId</code>,
+        host=<code>@(Context?.Request?.Host.Value)</code>,
+        periodPrimary=<code>@(isLocal ? "all (local)" : "30d")</code>,
+        hostFilterPrimary=<code>@(filteredHost ?? "(none)")</code>,
+        rawPrimary=@rawCountPrimary,
+        rawFinal=@rawCountFinal,
+        usedFallbackQuery=@usedFallbackQuery,
+        filtered=@(elements.Count)
+        @* Optional: show first few normalized paths when final > 0 *@
+        @* Add more details if you want *@
+        @if (!string.IsNullOrEmpty(apiError))
+        {
+            <div style="color:#f99">API error: @apiError</div>
+        }
+    </div>
+}
+
+<section class="front-greinar">
+    <div class="container bloglist most-read">
+        <div class="row">
+            <div class="col-12 text-center">
+                <h3>Mest lisið</h3>
+            </div>
+        </div>
+        <div class="row">
+            @foreach (var it in elements)
+            {
+                var node = it.Node;
+                var title = node?.Name ?? it.Title;
+                var intro = node?.Value<string>("inngangstekstur");
+                var date  = node?.Value<DateTime?>("dagfesting");
+                var image = node?.Value<MediaWithCrops>("mynd");
+                var link  = it.Href;
+
+                <div class="col-6">
+                    <a href="@link" class="news-item hover-shadow rounded10">
+                        <div class="img-wrap">
+                            @if (node != null && image != null)
+                            {
+                                var cropUrl = image.GetCropUrl("squareList");
+                                if (string.IsNullOrWhiteSpace(cropUrl))
+                                    cropUrl = image.Url();
+                                <img src="@cropUrl" alt="@title" />
+                            }
+                        </div>
+
+                        <div class="txt-wrap">
+                            <div class="tema">Tíðindi</div>
+                            <div class="yvirskrift">@title</div>
+
+                            @* hidden like your original *@
+                            @if (date.HasValue && date.Value != default && 1==2)
+                            {
+                                <div class="date">@date.Value.ToString("dd. MMMM yyyy")</div>
+                            }
+                            @if (!string.IsNullOrEmpty(intro) && 1==2)
+                            {
+                                var truncatedIntro = intro!.Length > 240 ? intro[..240] + "…" : intro;
+                                <div class="introtext">@truncatedIntro</div>
+                            }
+
+                            <svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 38 38" fill="none">
+                                <path d="M28.5 20.5833V30.0833C28.5 30.9232 28.1664 31.7286 27.5725 32.3225C26.9786 32.9164 26.1732 33.25 25.3333 33.25H7.91667C7.07681 33.25 6.27136 32.9164 5.6775 32.3225C5.08363 31.7286 4.75 30.9232 4.75 30.0833V12.6667C4.75 11.8268 5.08363 11.0214 5.6775 10.4275C6.27136 9.83363 7.07681 9.5 7.91667 9.5H17.4167M23.75 4.75H33.25M33.25 4.75V14.25M33.25 4.75L15.8333 22.1667" stroke="#F5F5F5" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </div>
+                    </a>
+                </div>
+            }
+        </div>
+    </div>
+</section>

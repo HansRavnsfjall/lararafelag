@@ -1,0 +1,43 @@
+@using Umbraco.Cms.Core.Models.Blocks
+@using Umbraco.Cms.Core.Models
+@using Umbraco.Cms.Core.Models.PublishedContent
+@using Umbraco.Extensions
+@inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage<BlockListItem>
+
+@{
+    var el     = Model.Content; // IPublishedElement
+    var img    = el.Value<IPublishedContent>("mynd");
+    var link   = el.Value<Link>("leinki"); // null if not set
+
+    // Best-effort alt text: media "altText" property if present, then media name
+    var alt    = img?.Value<string>("altText");
+    if (string.IsNullOrWhiteSpace(alt)) alt = img?.Name ?? "";
+
+    // Target (from Umbraco link picker). If _blank, add rel for safety.
+    var target = link?.Target; // e.g., "_blank" or null/empty
+    var rel    = string.Equals(target, "_blank", System.StringComparison.OrdinalIgnoreCase) ? "noopener noreferrer" : null;
+}
+
+@if (img != null)
+{
+<section class="lysing">
+    <div class="container">
+        <div class="row">
+            <div class="col-12">
+
+                @if (link != null && !string.IsNullOrWhiteSpace(link.Url))
+                {
+                    <a href="@link.Url" target="@(string.IsNullOrEmpty(target) ? null : target)" rel="@(string.IsNullOrEmpty(rel) ? null : rel)" title="@(string.IsNullOrWhiteSpace(link.Name) ? null : link.Name)">
+                        <img src="@img.Url()" alt="@alt" class="img-fluid w-100" />
+                    </a>
+                }
+                else
+                {
+                    <img src="@img.Url()" alt="@alt" class="img-fluid w-100" />
+                }
+
+            </div>
+        </div>
+    </div>
+</section>
+}

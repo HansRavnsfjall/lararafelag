@@ -1,0 +1,64 @@
+@using System
+@using System.Linq
+@using Umbraco.Cms.Core.Models
+@using Umbraco.Cms.Core.Models.PublishedContent
+@using Umbraco.Extensions
+@inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage<IPublishedContent>
+
+@{
+    Layout = "Master";
+
+    // Fetch visible children of alias "myndasavnElement", sorted by "dagfesting" desc
+    var items = Model
+        .ChildrenOfType("myndasavnElement")
+        .Where(x => x.IsVisible())
+        .OrderByDescending(x => x.Value<DateTime?>("dagfesting") ?? DateTime.MinValue)
+        .ToList();
+}
+
+<section class="container my-5">
+    <div class="row g-4">
+    <div class="col-12"><h1 class="large">Myndasavn</h1></div>
+        @if (!items.Any())
+        {
+            <div class="col-12">
+                <p class="text-muted mb-0">Einki myndasavn er tøkt enn.</p>
+            </div>
+        }
+        else
+        {
+            foreach (var item in items)
+            {
+                // MediaWithCrops from alias "yvirlitsmynd"
+                var media = item.Value<MediaWithCrops>("yvirlitsmynd");
+                var imgUrl = media?.GetCropUrl("squareGallery"); // uses your square crop
+                var name = item.Name;
+                var url = item.Url();
+
+                <div class="col-12 col-md-4">
+                    <article class="h-100">
+                        <a href="@url" class="text-decoration-none d-block h-100">
+                            <div class="ratio ratio-1x1 mb-2 bg-light overflow-hidden overviewImage">
+                                @if (!string.IsNullOrWhiteSpace(imgUrl))
+                                {
+                                    <img
+                                        src="@imgUrl?format=webp"
+                                        alt="@(media?.Value<string>("altText") ?? name)"
+                                        class="w-100 h-100"
+                                        style="object-fit:cover;" loading="lazy" />
+                                }
+                                else
+                                {
+                                    <div class="d-flex align-items-center justify-content-center w-100 h-100 text-muted">
+                                        <span>Ongin mynd</span>
+                                    </div>
+                                }
+                            </div>
+                            <h3 class="h6 mb-0">@name</h3>
+                        </a>
+                    </article>
+                </div>
+            }
+        }
+    </div>
+</section>

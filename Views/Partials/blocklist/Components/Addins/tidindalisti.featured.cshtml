@@ -1,0 +1,128 @@
+@using System
+@using System.Linq
+@using System.Collections.Generic
+@using Umbraco.Cms.Core.Models.Blocks
+@using Umbraco.Cms.Core.Models
+@using Umbraco.Cms.Core.Models.PublishedContent
+@using Umbraco.Extensions
+@using ContentModels = Umbraco.Cms.Web.Common.PublishedModels
+@inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage<BlockListItem>
+
+@{
+    var content = (ContentModels.Tidindalisti)Model.Content;
+
+    var numberToShow = content.TalAvTidindum;
+    var takeCount = numberToShow > 0 ? numberToShow : int.MaxValue;
+
+    var startFrom = content.Value<int?>("startFrom") ?? 0;
+    if (startFrom < 0) startFrom = 0;
+
+    var sources = content.Sources;
+
+    var now = DateTime.UtcNow;
+
+    var items = Enumerable.Empty<IPublishedContent>();
+    if (sources != null && sources.Any())
+    {
+        items = sources
+            .SelectMany(parent => parent
+                .DescendantsOfType("tidindaelement")
+                .Where(x => x.IsVisible()))
+            .DistinctBy(x => x.Id)
+            .Select(x => new { Node = x, Date = x.Value<DateTime?>("dagfesting") ?? DateTime.MinValue })
+            .Where(x => x.Date <= now)   // ✅ UTC filter
+            .OrderByDescending(x => x.Date)
+            .Skip(startFrom)
+            .Take(takeCount)
+            .Select(x => x.Node)
+            .ToList();
+    }
+
+    // ✅ De-dupe support: collect IDs of items rendered here (before the foreach)
+    var renderedIds = Context.Items["RenderedPostIds"] as HashSet<int>;
+    if (renderedIds is null)
+    {
+        renderedIds = new HashSet<int>();
+        Context.Items["RenderedPostIds"] = renderedIds;
+    }
+    renderedIds.UnionWith(items.Select(e => e.Id));
+
+    // --- Site root logic for LF-tag condition ---
+    var currentSiteRootKey = Umbraco.AssignedContentItem?.Root()?.Key; // Assigned page is IPublishedContent
+    var skulabladRoot     = Guid.Parse("81f22605-925d-4848-bb38-b886783b2083");   // current site (Skúlablaðið)
+    var laerarafelagRoot  = Guid.Parse("535f7cdc-9c1e-49b9-a115-f79d553b9984");   // other site (Lærarafelagið)
+    bool isSkulablad      = (currentSiteRootKey ?? Guid.Empty) == skulabladRoot;
+}
+
+<section class="front-greinar front-greinar--featured">
+    <div class="container px-0">
+        @if (!items.Any())
+        {
+            <div class="row">
+                <div class="col-12"><p>Onki funnið.</p></div>
+            </div>
+        }
+        else
+        {
+            foreach (var item in items)
+            {
+                var title = item.Name;
+                var intro = item.Value<string>("inngangstekstur");
+                var date  = item.Value<DateTime?>("dagfesting");
+                var tema  = item.Value<string>("tema");
+                var image = item.Value<MediaWithCrops>("mynd");
+                var link  = item.Url();
+                var crop  = image != null ? (image.GetCropUrl("NewsListImage") ?? image.Url()) : null;
+
+                // Determine the item's own site root
+                var itemRootKey = item.Root()?.Key;
+                bool showLfTag = isSkulablad && itemRootKey == laerarafelagRoot;
+                var target= @showLfTag ? "_blank" : "_self";
+
+                <div class="row g-0 mb-4" style="background:#F0F0F0;">
+                    <!-- Text column: left on desktop, second on mobile -->
+                    <div class="col-12 col-md-5 order-2 order-md-1 d-flex" style="background:#F0F0F0;">
+                        <a target="@target" href="@link" class="news-item d-flex flex-column w-100 p-4">
+                            <div class="txt-wrap">
+                                @if (!string.IsNullOrWhiteSpace(tema))
+                                {
+                                    <div class="tema">@tema</div>
+                                }
+                                <div class="yvirskrift">@title</div>
+
+                                @if (date.HasValue && date.Value != default)
+                                {
+                                    <div class="date hide">@date.Value.ToString("dd. MMMM yyyy")</div>
+                                }
+
+                                @if (!string.IsNullOrEmpty(intro))
+                                {
+                                    <div class="introtext">@intro</div>
+                                }
+                                <div class="more-news">Les meira</div>
+                            </div>
+                        </a>
+                    </div>
+
+                    <!-- Image column: right on desktop, first on mobile -->
+                    <div class="col-12 col-md-7 order-1 order-md-2">
+                        <a target="@target" href="@link" class="news-item d-block h-10 relative">
+                            <div class="img-wrap h-100 d-flex relative">
+                                @if (!string.IsNullOrWhiteSpace(crop))
+                                {
+                                    <img src="@crop?format=webp" alt="@title" class="img-fluid w-100 h-100 object-fit-cover" />
+                                    @* Insert the LF tag image immediately after the main image, conditionally *@
+                                   
+                                }
+                            </div>
+                             @if (showLfTag)
+                                    {
+                                        <img src="/icons/lf-tag.svg" title="Tíðindi frá Lærarafelagnum" alt="LF tag" class="lf-tag-featured" />
+                                    }
+                        </a>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</section>

@@ -1,0 +1,392 @@
+﻿@using Umbraco.Cms.Core.Models.PublishedContent
+@using Umbraco.Cms.Core.Web
+@using Umbraco.Extensions
+@using System
+@using System.Linq
+@inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage<IPublishedContent>
+
+@{
+    var siteRoot = Model?.Root();
+    var isSiteSkulablad = siteRoot?.Key == Guid.Parse("81f22605-925d-4848-bb38-b886783b2083");
+
+    // Level 1 (visible children of root)
+    var level1Nodes = siteRoot?
+        .Children?
+        .Where(c => c.Value<bool?>("hideInMenu") != true)
+        .ToList() ?? new List<IPublishedContent>();
+}
+
+<section class="header">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="row">
+          <div class="col-12">
+            <div class="toptop-wrapper">
+              <div class="top-links">
+                <a href="//www.strok.fo" target="_blank">Strok</a>
+                @if (isSiteSkulablad)
+                {
+                    <a href="//www.lararafelag.fo" target="_self">Lærarafelagið</a>
+                }
+                else
+                {
+                    <a href="//www.skulabladid.fo" target="_self">Skúlablaðið</a>
+                }
+                <a href="//www.bokadeildin.fo" target="_blank">Bókadeildin</a>
+                <a href="//www.bms.fo" target="_blank">Bókamiðsølan</a>
+              </div>
+              <a class="topmail" href="mailto:lararafelag@lararafelag.fo">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="20" viewBox="0 0 24 20" fill="none">
+                  <path d="M22.8333 3.5C22.8333 2.30833 21.8583 1.33333 20.6667 1.33333H3.33333C2.14166 1.33333 1.16666 2.30833 1.16666 3.5M22.8333 3.5V16.5C22.8333 17.6917 21.8583 18.6667 20.6667 18.6667H3.33333C2.14166 18.6667 1.16666 17.6917 1.16666 16.5V3.5M22.8333 3.5L12 11.0833L1.16666 3.5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </a>
+              <a class="topphone" href="tel:00298616863">
+                <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 26 26" fill="none">
+                  <path d="M23.8333 18.33V21.58C23.8346 21.8817 23.7728 22.1804 23.6519 22.4568C23.531 22.7332 23.3537 22.9814 23.1314 23.1854C22.9091 23.3893 22.6466 23.5446 22.3608 23.6413C22.075 23.7379 21.7722 23.7738 21.4717 23.7467C18.1381 23.3844 14.9359 22.2453 12.1225 20.4208C9.50498 18.7576 7.28578 16.5384 5.6225 13.9208C3.79164 11.0946 2.65226 7.87691 2.29667 4.52833C2.26959 4.22876 2.3052 3.92682 2.40121 3.64176C2.49722 3.3567 2.65153 3.09475 2.85433 2.87259C3.05712 2.65043 3.30395 2.47293 3.57911 2.3514C3.85426 2.22986 4.1517 2.16695 4.4525 2.16667H7.7025C8.22825 2.16149 8.73794 2.34767 9.13657 2.69049C9.53521 3.03332 9.79558 3.5094 9.86917 4.03C10.0063 5.07007 10.2607 6.09129 10.6275 7.07417C10.7733 7.46192 10.8048 7.88332 10.7184 8.28845C10.632 8.69358 10.4313 9.06545 10.14 9.36L8.76417 10.7358C10.3064 13.448 12.552 15.6936 15.2642 17.2358L16.64 15.86C16.9345 15.5687 17.3064 15.368 17.7115 15.2816C18.1167 15.1952 18.5381 15.2267 18.9258 15.3725C19.9087 15.7393 20.9299 15.9937 21.97 16.1308C22.4962 16.2051 22.9769 16.4701 23.3204 16.8756C23.664 17.2811 23.8465 17.7987 23.8333 18.33Z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg> (+298) 61 68 63
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="navbar-section container-fluid">
+      <div class="container">
+        <div class="row">
+          <div class="col-12">
+            <div class="topbar-flex">
+              <a class="logo" href="/">
+                @if (isSiteSkulablad)
+                {
+                    <div class="skulablad-logo"><span>SKÚLA</span><span class="bladid">BLAÐIÐ</span></div>
+                }
+                else
+                {
+                    <img src="~/images/logo.svg" alt="logo" />
+                }
+              </a>
+
+              <div class="nav-and-links">
+                <div class="main-nav">
+                  @foreach (var child in level1Nodes)
+                  {
+                      <a href="@child.Url()">@child.Name</a>
+                  }
+                </div>
+
+                <a class="search-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none">
+                    <path d="M26.1333 28L17.7333 19.6C17.0667 20.1333 16.3 20.5556 15.4333 20.8667C14.5667 21.1778 13.6444 21.3333 12.6667 21.3333C10.2444 21.3333 8.19444 20.4944 6.51667 18.8167C4.83889 17.1389 4 15.0889 4 12.6667C4 10.2444 4.83889 8.19444 6.51667 6.51667C8.19444 4.83889 10.2444 4 12.6667 4C15.0889 4 17.1389 4.83889 18.8167 6.51667C20.4944 8.19444 21.3333 10.2444 21.3333 12.6667C21.3333 13.6444 21.1778 14.5667 20.8667 15.4333C20.5556 16.3 20.1333 17.0667 19.6 17.7333L28 26.1333L26.1333 28ZM12.6667 18.6667C14.3333 18.6667 15.75 18.0833 16.9167 16.9167C18.0833 15.75 18.6667 14.3333 18.6667 12.6667C18.6667 11 18.0833 9.58333 16.9167 8.41667C15.75 7.25 14.3333 6.66667 12.6667 6.66667C11 6.66667 9.58333 7.25 8.41667 8.41667C7.25 9.58333 6.66667 11 6.66667 12.6667C6.66667 14.3333 7.25 15.75 8.41667 16.9167C9.58333 18.0833 11 18.6667 12.6667 18.6667Z" fill="#FEF7FF"/>
+                  </svg>
+                </a>
+
+                <!-- Mobile hamburger (visible on < lg) -->
+                <button class="btn btn-link p-0 d-lg-none ms-2" type="button"
+                        data-bs-toggle="offcanvas" data-bs-target="#mobileNav"
+                        aria-controls="mobileNav" aria-label="Open menu">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"
+                       viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                </button>
+
+                <div class="gerst-limur">
+                  @if (isSiteSkulablad)
+                  {
+                    <a href="/um-skulabladid/haldari/">Gerst haldari</a>
+                  }
+                  else
+                  {
+                    <a href="/limir/">Gerst limur</a>
+                  }
+                </div>
+              </div><!-- /.nav-and-links -->
+            </div><!-- /.topbar-flex -->
+          </div>
+        </div>
+      </div>
+    </div>
+</section>
+
+<!-- Mobile OFFCANVAS NAV (built from Umbraco tree) -->
+<div class="offcanvas offcanvas-start dd-offcanvas" tabindex="-1" id="mobileNav" aria-labelledby="mobileNavLabel">
+  <div class="offcanvas-header py-3">
+    <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+  </div>
+
+  <div class="offcanvas-body p-0">
+    <nav class="dd" aria-label="Mobile">
+      <!-- Root panel: level=0, NO default title -->
+      <div class="dd-panel dd-panel--active" data-level="0" data-title="">
+        <ul class="list-unstyled m-0">
+          @foreach (var l1 in level1Nodes)
+          {
+              // Level 2 (visible direct children of the level 1 node)
+              var level2Nodes = l1.Children?
+                  .Where(c => c.Value<bool?>("hideInMenu") != true)
+                  .ToList() ?? new List<IPublishedContent>();
+
+              <li>
+                @if (level2Nodes.Any())
+                {
+                    <!-- Level 1 WITH children: text + caret as siblings -->
+                    <div class="dd-row dd-opener">
+                      <a class="dd-link" href="@l1.Url()">@l1.Name</a>
+                      <button class="dd-caret" type="button" aria-label="Open @l1.Name"></button>
+                    </div>
+
+                    <!-- Level 2 list (only direct children; deeper levels are intentionally ignored) -->
+                    <ul class="dd-children list-unstyled">
+                      @foreach (var l2 in level2Nodes)
+                      {
+                          <li><a class="dd-link" href="@l2.Url()">@l2.Name</a></li>
+                      }
+                    </ul>
+                }
+                else
+                {
+                    <!-- Level 1 WITHOUT children: simple link row -->
+                    <div class="dd-row">
+                      <a class="dd-link" href="@l1.Url()">@l1.Name</a>
+                    </div>
+                }
+              </li>
+          }
+        </ul>
+      </div>
+    </nav>
+  </div>
+</div>
+
+<script>
+(function(){
+  const dd = document.querySelector('.dd');
+  if (!dd) return;
+
+  const rootPanel = dd.querySelector('.dd-panel');
+  const rootList  = rootPanel.querySelector(':scope > ul');
+
+  /* Root header: DO NOT render for level 0 and never use a fallback */
+  const isRootLevel = (rootPanel.dataset.level || '0') === '0';
+  const rootTitle = (rootPanel.dataset.title || '').trim();
+
+  if (!isRootLevel && rootTitle) {
+    const head0 = document.createElement('div');
+    head0.className = 'dd-head';
+    head0.innerHTML = `<div></div><div class="dd-title">Aftur</div>`;
+    rootPanel.insertBefore(head0, rootPanel.firstChild);
+  }
+  // else: no dd-head for root or empty title
+
+  function createPanel(title){
+    const safeTitle = (title || "").trim();
+    const p = document.createElement('div');
+    p.className = 'dd-panel';
+
+    if (safeTitle) {
+      p.innerHTML = `
+        <div class="dd-head">
+          <button type="button" class="dd-back" aria-label="Aftur">←</button>
+          <div class="dd-title">${safeTitle}</div>
+        </div>
+        <ul class="list-unstyled m-0"></ul>
+      `;
+    } else {
+      // No title => no header
+      p.innerHTML = `<ul class="list-unstyled m-0"></ul>`;
+    }
+    return p;
+  }
+
+  // Build one child panel per level-1 item (strictly 2 levels)
+  function build() {
+    const level1Lis = [...rootList.children];
+    level1Lis.forEach(li => {
+      const row = li.querySelector(':scope > .dd-row');
+      const link = row?.querySelector(':scope > a.dd-link');
+      const caret = row?.querySelector(':scope > .dd-caret');
+      const childrenUL = li.querySelector(':scope > ul.dd-children');
+      if (!row || !link) return;
+
+      const hasChildren = !!childrenUL && childrenUL.children.length > 0;
+
+      if (hasChildren) {
+        // Create child panel
+        const title = (link.textContent || '').trim();
+        const href  = link.getAttribute('href') || '#';
+        const childPanel = createPanel(title);
+        dd.appendChild(childPanel);
+
+        // Inject the parent link on top
+        const panelUL = childPanel.querySelector('ul');
+        const parentLi = document.createElement('li');
+        const parentA = link.cloneNode(true);
+        parentA.classList.add('dd-parentlink');
+        parentA.setAttribute('href', href);
+        parentLi.appendChild(parentA);
+        panelUL.appendChild(parentLi);
+
+        // Divider
+        const sep = document.createElement('div');
+        sep.className = 'dd-sep';
+        panelUL.appendChild(sep);
+
+        // Append ONLY direct children (ignore anything deeper)
+        [...childrenUL.children].forEach(childLi => {
+          const a2 = childLi.querySelector(':scope > a.dd-link');
+          if (!a2) return;
+          const li2 = document.createElement('li');
+          li2.appendChild(a2.cloneNode(true));
+          panelUL.appendChild(li2);
+        });
+
+        // Open child (single-fire) and stop propagation so row doesn't double-trigger
+        const openChild = (e) => {
+          if (e) { e.preventDefault(); e.stopPropagation(); }
+          push(childPanel);
+        };
+
+        row.classList.add('dd-opener');
+        row.addEventListener('click', (e) => {
+          if (e.target.closest('a.dd-link') || e.target.closest('.dd-caret')) return;
+          openChild(e);
+        });
+        link.addEventListener('click', openChild);
+        caret && caret.addEventListener('click', openChild);
+
+        // Remove the source children UL so it never shows in root
+        childrenUL.remove();
+      } else {
+        // No children: default link behavior
+      }
+    });
+  }
+
+  // Stack & transitions
+  const stack = [rootPanel];
+  rootPanel.classList.add('dd-panel--active');
+
+  function push(nextPanel) {
+    if (stack[stack.length - 1] === nextPanel) return;
+
+    const current = stack[stack.length - 1];
+    current.classList.remove('dd-panel--active');
+    current.classList.add('dd-panel--left');
+
+    nextPanel.classList.remove('dd-panel--left');
+    nextPanel.classList.add('dd-panel--active');
+
+    stack.push(nextPanel);
+  }
+
+  function pop() {
+    if (stack.length <= 1) return;
+    const current = stack.pop();
+    const previous = stack[stack.length - 1];
+
+    current.classList.remove('dd-panel--active');
+    current.style.transform = 'translateX(100%)';
+    previous.classList.remove('dd-panel--left');
+    previous.classList.add('dd-panel--active');
+
+    setTimeout(() => current.style.removeProperty('transform'), 250);
+  }
+
+  // Back: arrow **or title** both go back (root title is inert)
+  dd.addEventListener('click', (e) => {
+    const backOrTitle = e.target.closest('.dd-back, .dd-title');
+    if (backOrTitle) {
+      if (backOrTitle.classList.contains('dd-title')) {
+        const panel = backOrTitle.closest('.dd-panel');
+        if (!panel || panel === rootPanel) return;
+      }
+      e.preventDefault();
+      e.stopPropagation();
+      pop();
+    }
+  });
+
+  // Reset to root when offcanvas closes
+  const offcanvasEl = document.getElementById('mobileNav');
+  offcanvasEl?.addEventListener('hidden.bs.offcanvas', () => {
+    while (stack.length > 1) stack.pop();
+    dd.querySelectorAll('.dd-panel').forEach(p => {
+      p.classList.remove('dd-panel--active','dd-panel--left');
+      if (p !== rootPanel) p.style.removeProperty('transform');
+    });
+    rootPanel.classList.add('dd-panel--active');
+  });
+
+  build();
+})();
+</script>
+
+<style>
+/* === Offcanvas sizing: full on phones; narrower on tablets === */
+.dd-offcanvas { --dd-panel-width: 100vw; --dd-header-height: 56px; }
+@@media (min-width: 576px) { .dd-offcanvas { --dd-panel-width: min(420px, 80vw); } }
+.dd-offcanvas.offcanvas-start { width: var(--dd-panel-width); }
+
+/* === Drilldown container/panels === */
+.dd { position: relative; overflow: hidden; height: calc(100dvh - var(--dd-header-height)); }
+.dd-panel {
+  position: absolute; inset: 0; width: var(--dd-panel-width);
+  transform: translateX(100%); transition: transform 220ms ease;
+  background: #fff; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: .5rem 1rem 1rem;
+}
+.dd-panel--active { transform: translateX(0); }
+.dd-panel--left   { transform: translateX(-100%); }
+
+.dd-head {
+  position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: .5rem;
+  height: var(--dd-header-height); background: #f8f9fa; margin: -.5rem -1rem .75rem; padding: 0 .75rem;
+  border-bottom: 1px solid rgba(0,0,0,.06);
+}
+.dd-back { border: 0; background: transparent; padding: .5rem; font-size: 1.15rem; line-height: 1; }
+.dd-title { font-weight: 600; }
+
+/* Lists */
+.dd ul { margin: 0; padding: 0; list-style: none; }
+.dd li { padding: .125rem 0; }
+
+/* Row layout: text + caret as siblings (aligned) */
+.dd-row {
+  display: flex; align-items: center; gap: .25rem;
+  padding: .125rem .25rem; border-radius: .5rem;
+}
+.dd-row:hover { background: rgba(0,0,0,.03); }
+.dd a.dd-link {
+  flex: 1 1 auto; display: block; padding: .6rem .5rem;
+  text-decoration: none; color: #111; border-radius: .35rem;
+}
+
+/* Caret */
+.dd-caret {
+  flex: 0 0 auto; width: 2.25rem; height: 2.25rem;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 0; background: transparent;
+}
+.dd-caret::after {
+  content: ""; display: inline-block; width: .5rem; height: .5rem;
+  border-right: 2px solid currentColor; border-top: 2px solid currentColor; transform: rotate(45deg);
+}
+
+/* Whole row is clickable when it opens children */
+.dd-row.dd-opener { cursor: pointer; }
+
+/* Parent link injected at top of child panels */
+.dd a.dd-parentlink {
+  display: block; font-weight: 600; padding: .75rem .75rem; margin-bottom: .25rem;
+  border-radius: .5rem; text-decoration: none; color: #111; background: rgba(0,0,0,.04);
+}
+.dd .dd-sep { height: 1px; margin: .25rem 0 .25rem; background: rgba(0,0,0,.06); }
+
+/* Hide desktop menu on mobile (adjust if you already handle this) */
+@@media (max-width: 991.98px) {
+  .main-nav { display: none !important; }
+}
+
+/* Prevent FOUC: never show nested children before JS runs */
+nav.dd ul.dd-children { display: none !important; }
+</style>

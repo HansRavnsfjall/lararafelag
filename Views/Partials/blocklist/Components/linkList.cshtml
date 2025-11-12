@@ -1,0 +1,7 @@
+@using Umbraco.Cms.Core.Models.Blocks
+@using ContentModels = Umbraco.Cms.Web.Common.PublishedModels
+@inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage<BlockListItem<ContentModels.AvailableJobsList>>
+
+@{
+    var content = Model.Content;
+}

@@ -1,0 +1,305 @@
+
+.ng-cloak {
+    display: none !important;
+}
+
+.cmsimportInfoLink {
+    text-decoration: underline;
+    color: #2e8aea;
+}
+
+    .cmsimportInfoLink:hover {
+        text-decoration: underline;
+        color: #2e8aea;
+    }
+
+.cmsimportDashboardRow {
+    clear: both;
+}
+
+.cmsimportDashboardColumn {
+    display: block;
+    float: left;
+    padding-right: 20px;
+    width: 23%;
+}
+
+    .cmsimportDashboardColumn .cmsimportDashboardBox {
+        background-color: #F2FCFC;
+        border-radius: 3px;
+        border: 2px solid transparent;
+        padding: 25px;
+        margin-bottom: 10px;
+        text-decoration: none;
+        display: block;
+        color: #666;
+    }
+
+        .cmsimportDashboardColumn .cmsimportDashboardBox:hover {
+            border: 2px solid #00BEC1;
+            cursor: pointer;
+            transition: border-color 150ms ease-in-out;
+        }
+
+    .cmsimportDashboardColumn .cmsimportDashboardBoxTitle {
+        color: #00BEC1;
+        font-size: 16px;
+        text-align: center;
+        margin-bottom: 5px;
+        font-weight: bold;
+    }
+
+    .cmsimportDashboardColumn .cmsimportDashboardBoxDescription {
+        text-align: center;
+        line-height: 1.4em;
+    }
+
+.cmsimportInfoRow {
+    text-align: center;
+    font-size: 12px;
+}
+
+    .cmsimportInfoRow a {
+        text-decoration: underline;
+    }
+
+.cmsImportTemplateEditor {
+    min-height: 300px;
+}
+
+    .cmsImportTemplateEditor .ace_editor {
+        min-height: 300px;
+        height: 300px;
+    }
+
+.cmsimportmarginbottom30 {
+    margin-bottom: 30px;
+}
+
+.cmsimportpaddingtop20 {
+    padding-top: 20px;
+}
+
+.cmsimportRow {
+    vertical-align: top;
+}
+
+.cmsimportCaption {
+    float: left;
+    font-weight: bold;
+    width: 180px;
+}
+
+.cmsimportConfirmCaption {
+    float: left;
+    width: 250px;
+}
+
+.cmsimportConfirmAdvancedSettingRow {
+    padding: 10px 0 10px;
+    border-bottom: 1px solid #e9e9eb;
+}
+
+    .cmsimportConfirmAdvancedSettingRow:last-child {
+        border-bottom: 0;
+    }
+
+.cmsimportClear {
+    clear: both;
+}
+
+.cmimportField {
+    min-width: 500px;
+}
+
+.cmsimportHeaderRow {
+    clear: both;
+    height: 20px;
+    background: none repeat scroll 0 0 #F8F8F8;
+    padding-top: 10px;
+    border: 1px solid #D9D9D9;
+}
+
+
+.cmsimportDisplayControl {
+    float: left;
+    width: 100% !important;
+}
+
+.cmsimportControl {
+    float: left;
+    border-bottom: 1px solid #f6f6f7 !important;
+    width: 100% !important;
+}
+
+.cmsimportFilePickerButton {
+    padding-top: -5px;
+}
+
+.cmsimportMappingControlAdvancedSetting {
+    padding-top: 10px !important;
+    background-color: #f3f3f5;
+}
+
+.cmsimportAdvancedIcon {
+    font-size: 20px;
+    padding: 10px;
+}
+
+.cmsimportAdvancedSettings {
+    padding-top: 25px;
+}
+
+.cmsimportAdvancedConfirmSettings {
+    width: 78%;
+    clear: both;
+    padding-top: 10px;
+    padding-left: 300px;
+    overflow: hidden
+}
+
+.cmsimportAdvancedSettingsConfirmTitle {
+    align-items: center;
+    background-color: #e9e9eb;
+    color: #000000;
+    font-weight: bold;
+    border-radius: 3px 3px 0 0;
+    justify-content: space-between;
+    padding: 10px 20px;
+}
+
+.cmsimportdatasourcefilehide {
+    width: 0.1px;
+    height: 0.1px;
+    opacity: 0;
+    overflow: hidden;
+    position: absolute;
+    z-index: -1;
+}
+
+.cmsimportFileSelected {
+    font-size: 12px;
+    width: 500px !important;
+}
+
+/*sinceV12*/
+.cmsimportHeaderMargin {
+    margin-bottom: 20px;
+    font-weight: bold;
+}
+
+.cmsimport-group-panel-content {
+    margin-left: 20px;
+    padding-bottom: 10px;
+}
+/*fields*/
+.cmsimportSmallTextBox {
+    width: 220px;
+}
+
+.cmsimportElementActions {
+    background-color: hsla(0,0%,100%,.96);
+    border-radius: 16px;
+    font-size: 0;
+    padding-left: 5px;
+    padding-right: 5px;
+    position: absolute;
+    right: 10px;
+    margin-top: 15px;
+    cursor: pointer;
+}
+
+.cmsimportElementHeader {
+    background-color: transparent;
+    border: 1px dashed #bbbabf;
+    border-radius: 3px;
+    color: #1b264f;
+    cursor: pointer;
+    font-weight: 700;
+    min-height: 46px;
+    position: relative;
+    width: 100%;
+    line-height: 46px;
+}
+
+.cmsimportElementInfoHeader {
+    float: left;
+    margin-left: 10px;
+}
+
+    .cmsimportElementInfoHeader.cmsimportFirstElementHeader {
+        margin-left: -130px;
+    }
+
+.cmsimportElementInfoIcons {
+    float: left;
+    margin: 2px 5px 0 0;
+}
+
+.cmsimportDeleteElement {
+    float: right;
+    margin-right: 10px;
+}
+
+.cmsimportElementArrow {
+    border: solid black;
+    border-width: 0 2px 2px 0;
+    display: inline-block;
+    padding: 2px;
+    margin: 0px 5px 5px 0;
+}
+
+.cmsimportElementArrowActive {
+    transform: rotate(45deg);
+    -webkit-transform: rotate(45deg);
+}
+
+.cmsimportElementArrowInActive {
+    transform: rotate(-45deg);
+    -webkit-transform: rotate(-45deg);
+}
+
+.cmsimportElementMapping {
+    min-width: 768px;
+}
+
+.cmimportFieldError {
+    border: 2px dotted red;
+}
+
+/*since v13*/
+.confirmCaptionTableColumn {
+    min-width: 300px;
+    max-width: 300px;
+    float: left;
+}
+
+.confirmValueTableColumn {
+    max-width: 100%;
+}
+
+.confirmTablerow {
+    clear: both;
+    color: #817f85;
+    font-size: 14px;
+    font-family: Lato,Helvetica Neue,Helvetica,Arial,sans-serif;
+    padding: 10px 0 10px 50px;
+    border-top: 1px solid #e9e9eb;
+    color: #817f85;
+    min-height: 20px;
+    position: relative;
+}
+
+.confirmElement{
+    padding-left:300px;
+    width:78%;
+}
+
+.confirmBar {
+    width: 78%;
+}
+
+.confirmclear {
+    display: block;
+    clear: both;
+}

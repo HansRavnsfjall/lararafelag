@@ -1,0 +1,178 @@
+﻿@using System
+@using System.Linq
+@using System.Globalization
+@using Umbraco.Cms.Core.Models
+@using Umbraco.Cms.Core.Models.PublishedContent
+@using Umbraco.Extensions
+@inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage<IPublishedContent>
+
+@{
+    Layout = "Master";
+
+    // Basic fields
+    var pageTitle   = Model.Name;
+    var teksturHtml = Model.Value<string>("tekstur");
+    var introHtml   = Model.Value<string>("inngangstekstur");
+    var dato        = Model.Value<DateTime?>("dagfesting");
+
+    // Multiple media picker: IEnumerable<MediaWithCrops>
+    var images = Model.Value<IEnumerable<MediaWithCrops>>("myndir") ?? Enumerable.Empty<MediaWithCrops>();
+
+    // ---- Find the nearest gallery parent: alias "myndasavnsyvirlit"
+    IPublishedContent? galleryAnchor = Model;
+    if (!string.Equals(galleryAnchor.ContentType.Alias, "myndasavnsyvirlit", StringComparison.OrdinalIgnoreCase))
+        galleryAnchor = Model.Parent;
+
+    while (galleryAnchor != null &&
+           !string.Equals(galleryAnchor.ContentType.Alias, "myndasavnsyvirlit", StringComparison.OrdinalIgnoreCase))
+    {
+        galleryAnchor = galleryAnchor.Parent;
+    }
+
+    // Right column content: list the parent's children (siblings), exclude current
+    var galleryItems = Enumerable.Empty<IPublishedContent>();
+    if (galleryAnchor != null)
+    {
+        galleryItems = galleryAnchor
+            .ChildrenOfType("myndasavnElement")
+            .Where(x => x.IsVisible()
+                        && x.Value<bool?>("hideInMenu") != true
+                        && x.Key != Model.Key)
+            .OrderByDescending(x => x.Value<DateTime?>("dagfesting") ?? x.CreateDate)
+            .ToList();
+    }
+
+    // Headings / "more" link text
+    string toplHeading   = galleryAnchor?.Value<string>("temaHeding")?.Trim() ?? galleryAnchor?.Name ?? "Myndasøvn";
+    string sidebarHeading= galleryAnchor?.Value<string>("yvirskrift")?.Trim() ?? "Onnur myndasøvn";
+    string moreUrl       = galleryAnchor?.Url() ?? "#";
+    string moreText      = galleryAnchor?.Value<string>("teksturALeinki")?.Trim() ?? "Fleiri myndasøvn";
+}
+
+<!-- Fancybox CSS (wrap the string to avoid parsing) -->
+<link rel="stylesheet" href="@("https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.css")" />
+
+<section class="content">
+    <div class="container">
+        <div class="row">
+            <!-- LEFT -->
+            <div class="col-md-8 myndir-col">
+                <h3 class="topl-pagename">Myndir</h3>
+                <h1 class="page-heading">@pageTitle</h1>
+
+
+                @if (!string.IsNullOrWhiteSpace(introHtml))
+                {
+                    <div class="news-intro-text">
+                        @Html.Raw(introHtml)
+                    </div>
+                }
+
+                <!-- Gallery grid -->
+                <section class="gallery-section my-4">
+                    @if (!images.Any())
+                    {
+                        <p class="text-muted mb-0">Ongar myndir eru lagdar inn enn.</p>
+                    }
+                    else
+                    {
+                        <div class="row row-cols-2 row-cols-sm-3 row-cols-lg-4 g-3">
+                            @foreach (var media in images)
+                            {
+                                if (media == null) { continue; }
+
+                                var fullUrl = media.Url();
+                                if (string.IsNullOrWhiteSpace(fullUrl)) { continue; }
+
+                                // Try named crop first; fallback to square crop, then full
+                                string thumbUrl = null;
+                                try { thumbUrl = media.GetCropUrl("squareGallery"); } catch { thumbUrl = null; }
+                                if (string.IsNullOrWhiteSpace(thumbUrl))
+                                    thumbUrl = media.GetCropUrl(width: 600, height: 600, imageCropMode: ImageCropMode.Crop) ?? fullUrl;
+
+                                var alt = media.Value<string>("altText");
+                                if (string.IsNullOrWhiteSpace(alt)) alt = media.Name ?? pageTitle;
+
+                                <div class="col">
+                                    <a href="@fullUrl?format=webp"
+                                       data-fancybox="gallery"
+                                       data-caption="@alt"
+                                       class="d-block text-decoration-none">
+                                        <div class="ratio ratio-1x1 bg-light overflow-hidden">
+                                            <img src="@thumbUrl?format=webp"
+                                                 alt="@alt"
+                                                 class="w-100 h-100"
+                                                 style="object-fit:cover;"
+                                                 loading="lazy" />
+                                        </div>
+                                    </a>
+                                </div>
+                            }
+                        </div>
+                    }
+                </section>
+
+                @if (!string.IsNullOrWhiteSpace(teksturHtml))
+                {
+                    <div class="page-text editor-text">
+                        @Html.Raw(teksturHtml)
+                    </div>
+                }
+            </div>
+
+            <!-- RIGHT — siblings list from parent ("myndasavnsyvirlit") -->
+            <div class="col-md-4">
+                @if (galleryAnchor == null)
+                {
+                    @* Hard error (strict): no ancestor with alias "myndasavnsyvirlit" found *@
+                    <div style="border:2px solid #c00;padding:12px;margin:16px 0;background:#fff4f4;color:#900;">
+                        <strong>Feilur:</strong> manglandi "parent" <code>myndasavnsyvirlit</code> ikki funnið.
+                        <div style="margin-top:6px;font-size:.9em;color:#600;">
+                            Ancestor trail:
+                            @string.Join(" &rsaquo; ",
+                                Model.AncestorsOrSelf().Select(a => a.Name() + "[" + a.ContentType.Alias + "]").Reverse())
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="submen-wrapper more-news">
+                        <h3>Aðrar myndir</h3>
+                        <ul>
+                            @foreach (var item in galleryItems)
+                            {
+                                var title = item.Value<string>("yvirskrift");
+                                if (string.IsNullOrWhiteSpace(title)) title = item.Name();
+
+                                var date = item.Value<DateTime?>("dagfesting");
+                                var displayDate = (date ?? item.CreateDate).ToString("dd.MM.yyyy", CultureInfo.InvariantCulture);
+                                var link = item.Url();
+
+                                <li>
+                                    <a href="@link">
+                                        <div class="date">@displayDate</div>
+                                        <div class="txt">@title</div>
+                                    </a>
+                                </li>
+                            }
+                        </ul>
+
+                        <a class="more-news-link" href="@moreUrl">Fleiri myndir</a>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Fancybox JS -->
+<script src="@("https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.umd.js")"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  Fancybox.bind("[data-fancybox='gallery']", {
+    Thumbs: { type: "classic" },
+    Toolbar: { display: ["zoom", "slideshow", "thumbs", "close"] },
+    Images: { Panzoom: { maxScale: 3 } }
+  });
+});
+</script>

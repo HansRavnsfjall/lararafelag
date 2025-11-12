@@ -1,0 +1,47 @@
+@using Umbraco.Cms.Core.Models.Blocks
+@using Umbraco.Cms.Core.Models.PublishedContent
+@using Umbraco.Extensions
+@inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage<BlockListItem>
+
+@{
+    var el   = Model.Content; // IPublishedElement
+    var img  = el.Value<IPublishedContent>("mynd");
+    var head = el.Value<string>("yvirskrift");
+    var text = el.Value<string>("tekstur");
+
+    // alt text: media altText if set, otherwise name
+    var alt = img?.Value<string>("altText");
+    if (string.IsNullOrWhiteSpace(alt)) alt = img?.Name ?? "";
+}
+
+<section class="award-fullwidth">
+    <div class="container">
+        <div class="row align-items-center">
+        <div class="col-12">
+        <div class="award-fullw-outer">
+            <div class="img-wrap">
+                @if (img != null)
+                {
+                    <img src="@img.Url()" alt="@alt" class="img-fluid w-100" />
+                }
+            </div>
+            
+                <div class="text-wrap">
+                    @if (!string.IsNullOrWhiteSpace(head))
+                    {
+                        <h3>@head</h3>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(text))
+                    {
+                        <div class="rte">
+                            @Html.Raw(text)
+                        </div>
+                    }
+                    <a href="https://www.lararafelag.fo/vedurlagsvirdisloenin/" class="more-news">Les meira</a>
+                </div>
+            
+        </div>
+        </div>
+        </div>
+    </div>
+</section>

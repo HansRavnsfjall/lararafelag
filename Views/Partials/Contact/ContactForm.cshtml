@@ -1,0 +1,70 @@
+@using Lararafelagid.Controllers
+@using Lararafelagid.Models
+@model ContactFormViewModel
+@inherits Microsoft.AspNetCore.Mvc.Razor.RazorPage<ContactFormViewModel>   
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+
+@{
+    var success = (TempData["ContactForm.Success"] as string) == "true";
+    var failed  = (TempData["ContactForm.Success"] as string) == "false";
+}
+
+<div class="contact-form">
+    @if (success)
+    {
+        <div class="alert alert-success" role="alert">
+            Takk! Boðini eru send til okkum.
+        </div>
+    }
+    else
+    {
+        @if (failed)
+        {
+            <div class="alert alert-danger" role="alert">
+                Tað eydnaðist ikki at senda. Vinarliga royn aftur.
+            </div>
+        }
+
+        @using (Html.BeginUmbracoForm<ContactSurfaceController>(
+                    action: "Submit",
+                    additionalRouteVals: null,
+                    htmlAttributes: new { @class = "contact-form__form", novalidate = "novalidate" },
+                    method: FormMethod.Post))
+        {
+            @Html.AntiForgeryToken()
+            @Html.ValidationSummary(excludePropertyErrors: true, "", new { @class = "text-danger" })
+
+            <div class="mb-3">
+                <label asp-for="Name" class="form-label"></label>
+                <input asp-for="Name" class="form-control" />
+                <span asp-validation-for="Name" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Email" class="form-label"></label>
+                <input asp-for="Email" class="form-control" />
+                <span asp-validation-for="Email" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Phone" class="form-label"></label>
+                <input asp-for="Phone" class="form-control" />
+                <span asp-validation-for="Phone" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Message" class="form-label"></label>
+                <textarea asp-for="Message" rows="5" class="form-control"></textarea>
+                <span asp-validation-for="Message" class="text-danger"></span>
+            </div>
+
+            <!-- Honeypot -->
+            <div style="position:absolute; left:-5000px;" aria-hidden="true">
+                <label asp-for="Website">Website</label>
+                <input asp-for="Website" autocomplete="off" tabindex="-1" />
+            </div>
+
+            <button type="submit" class="btn more-news btn-primary">Send</button>
+        }
+    }
+</div>

@@ -1,0 +1,132 @@
+@using System
+@using System.Linq
+@using Umbraco.Cms.Core.Models.Blocks
+@using Umbraco.Cms.Core.Models
+@using Umbraco.Extensions
+@using ContentModels = Umbraco.Cms.Web.Common.PublishedModels
+@inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage<BlockListItem>
+
+@{
+    // Cast the block content
+    var content = (ContentModels.Tidindalisti)Model.Content;
+
+    // How many items to show (from GUI)
+    var numberToShow = content.TalAvTidindum;
+    var takeCount = numberToShow > 0 ? numberToShow : int.MaxValue;
+
+    // Dynamic offset (from GUI Number property alias: startFrom)
+    var startFrom = content.Value<int?>("startFrom") ?? 0;
+    if (startFrom < 0) startFrom = 0; // safety
+
+    // Selected sources (MNTP)
+    var sources = content.Sources;
+
+    // Collect descendants of type "tidindaelement", only visible, sort by dagfesting desc, skip/take
+    var elements = Enumerable.Empty<Umbraco.Cms.Core.Models.PublishedContent.IPublishedContent>();
+    if (sources != null && sources.Any())
+    {
+        elements = sources
+            .SelectMany(parent => parent.DescendantsOfType("tidindaelement").Where(x => x.IsVisible()))
+            .DistinctBy(x => x.Id)
+            .Select(x => new { Node = x, Date = x.Value<DateTime?>("dagfesting") ?? DateTime.MinValue })
+            .OrderByDescending(x => x.Date)
+            .Skip(startFrom)
+            .Take(Math.Max(takeCount, 4)) // ensure we can render 1 + 3 when available
+            .Select(x => x.Node)
+            .ToList();
+    }
+
+    var feature = elements.FirstOrDefault();
+    var gridItems = elements.Skip(1).Take(3).ToList();
+}
+
+<section class="front-greinar hagtol py-4 py-md-5">
+    <div class="container hagtollist">
+
+        <!-- ======= FEATURE (full-width) ======= -->
+        @if (feature != null)
+        {
+            var fTitle = feature.Name;
+            var fIntro = feature.Value<string>("inngangstekstur");
+            var fImage = feature.Value<MediaWithCrops>("mynd");
+            var fUrl   = feature.Url();
+
+            <div class="row toprow g-4 g-lg-5 mb-4 mb-lg-5">
+                <div class="col-12 col-lg-7">
+                    <a href="@fUrl" class="d-block position-relative w-100 overflow-hidden">
+                        @if (fImage != null)
+                        {
+                            var heroCrop = fImage.GetCropUrl("NewsHero");
+                            if (string.IsNullOrWhiteSpace(heroCrop)) { heroCrop = fImage.Url(); }
+                            <img src="@heroCrop?format=webp" alt="@fTitle" class="img-fluid w-100" style="object-fit:cover; aspect-ratio: 16 / 9;" />
+                        }
+                    </a>
+                </div>
+
+                <div class="col-12 col-lg-5">
+                    <h3 class="mb-3">@fTitle</h3>
+
+                    @if (!string.IsNullOrWhiteSpace(fIntro))
+                    {
+                        var intro = fIntro.Length > 420 ? fIntro.Substring(0, 420) + "…" : fIntro;
+                        <p class="mb-4">@intro</p>
+                    }
+
+                    <a href="@fUrl" class="more-news small-green">
+                        Les meira
+                    </a>
+                </div>
+            </div>
+        }
+
+        <!-- ======= THREE CARDS (1/3 each) ======= -->
+        @if (gridItems.Any())
+        {
+            <div class="row g-4">
+                @foreach (var item in gridItems)
+                {
+                    var title = item.Name;
+                    var image = item.Value<MediaWithCrops>("mynd");
+                    var url   = item.Url();
+
+                    <div class="col-12 col-md-4">
+                        <a href="@url" class="d-block text-decoration-none grow-hover">
+                            <div class="w-100 overflow-hidden mb-3">
+                                @if (image != null)
+                                {
+                                    // Try a square/thumbnail crop first (fallback to original)
+                                    var cardCrop = image.GetCropUrl("squareList");
+                                    if (string.IsNullOrWhiteSpace(cardCrop))
+                                    {
+                                        cardCrop = image.GetCropUrl("NewsListImage");
+                                        if (string.IsNullOrWhiteSpace(cardCrop)) { cardCrop = image.Url(); }
+                                    }
+                                    <img src="@cardCrop" alt="@title" class="img-fluid w-100" style="object-fit:cover; aspect-ratio: 16 / 9;" />
+                                }
+                            </div>
+                            <h5 class="mb-0">@title</h5>
+                        </a>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="row">
+                <div class="col-12">
+                    <p>Onki funnið.</p>
+                </div>
+            </div>
+        }
+
+        <!-- ======= CTA UNDER GRID (optional) ======= -->
+        <div class="row pt-5">
+            <div class="col-12 text-center">
+                <a class="more-news small-orange" href="/hagtoel">
+                    Fleiri hagtalsgreinar
+                </a>
+            </div>
+        </div>
+
+    </div>
+</section>

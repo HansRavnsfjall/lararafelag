@@ -1,0 +1,13 @@
+<div ng-controller="Hans.ParamMediaPickerController as vm">
+  <umb-editor-view>
+    <umb-editor-container>
+      <umb-media-picker
+        ng-model="vm.selection"
+        multiple="vm.cfg.multiple"
+        images-only="vm.cfg.onlyImages"
+        start-node-udi="vm.cfg.startNodeUdi"
+        start-node-id="vm.cfg.startNodeId">
+      </umb-media-picker>
+    </umb-editor-container>
+  </umb-editor-view>
+</div>

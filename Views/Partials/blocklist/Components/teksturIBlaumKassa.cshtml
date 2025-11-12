@@ -1,0 +1,14 @@
+@using Umbraco.Cms.Core.Models.Blocks
+@using ContentModels = Umbraco.Cms.Web.Common.PublishedModels
+@inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage<BlockListItem<ContentModels.TeksturIblaumKassa>>
+
+    @{
+var content=(ContentModels.TeksturIblaumKassa)Model.Content;
+var yvirskrift=content.Yvirskrift;
+var tekstur=content.Tekstur;
+    }
+<div class="blue-bg-text-section">
+
+  <h3>@yvirskrift</h3>
+@tekstur
+</div>

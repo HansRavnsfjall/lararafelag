@@ -1,0 +1,357 @@
+using System;
+using System.Linq;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Text;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
+using Examine;
+using Examine.Search;
+using Umbraco.Cms.Web.Common.Controllers;
+using Umbraco.Cms.Core.Web;
+using Umbraco.Cms.Core.Models.PublishedContent;
+using Umbraco.Cms.Core.Routing;
+using Umbraco.Extensions;
+using Umbraco.Cms.Core;                    // Constants.UmbracoIndexes
+using Umbraco.Cms.Infrastructure.Examine;  // IndexTypes.Content
+
+namespace Lararafelagid.Controllers
+{
+    public class SearchController : UmbracoApiController
+    {
+        private readonly IExamineManager _examine;
+        private readonly IUmbracoContextAccessor _ctx;
+        private readonly IPublishedUrlProvider _urlProvider;
+        private readonly IMemoryCache _cache;
+
+        // ExternalIndex fields
+        private const string FieldPath = "__Path"; // usually "-1,1234,5678"
+
+        // Alias field names vary across builds – OR across both
+        private static readonly string[] AliasFields = new[] { "__NodeTypeAlias", "nodeTypeAlias" };
+
+        // Text fields to search (adjust to YOUR property aliases)
+        private static readonly string[] DefaultSearchFields = new[]
+        {
+            "nodeName",        // built-in
+            "yvirskrift",      // title
+            "inngangstekstur", // intro
+            "tekstur"          // body/RTE
+        };
+
+        public SearchController(
+            IExamineManager examine,
+            IUmbracoContextAccessor ctx,
+            IPublishedUrlProvider urlProvider,
+            IMemoryCache cache)
+        {
+            _examine = examine;
+            _ctx = ctx;
+            _urlProvider = urlProvider;
+            _cache = cache;
+        }
+
+        /// GET /umbraco/api/search/query
+        /// q=term
+        /// alias=tidindaelement (comma-separated ok)
+        /// siteRoots=GUID,GUID
+        /// groupRoots=GUID,GUID,GUID
+        /// primaryRoot=GUID
+        /// takePerGroup=3
+        /// skip=0&take=20
+        /// culture=fo-FO (optional; disabled by default)
+        /// mode=typeahead|full
+        /// diag=1 (index-only counters)
+        /// diag=2 (checks Umbraco content.Path membership)
+        [HttpGet]
+        public IActionResult Query(
+            [FromQuery] string q = "",
+            [FromQuery] string alias = "tidindaelement",
+            [FromQuery] string? siteRoots = null,
+            [FromQuery] string? groupRoots = null,
+            [FromQuery] string? primaryRoot = null,
+            [FromQuery] int takePerGroup = 3,
+            [FromQuery] int skip = 0,
+            [FromQuery] int take = 20,
+            [FromQuery] string? culture = null,
+            [FromQuery] string mode = "typeahead",
+            [FromQuery] int diag = 0)
+        {
+            if (!_examine.TryGetIndex(Constants.UmbracoIndexes.ExternalIndexName, out var index) || index == null)
+                return Ok(new SearchResponse());
+
+            if (!_ctx.TryGetUmbracoContext(out var umb) || umb?.Content == null)
+                return Ok(new SearchResponse());
+
+            var siteRootIds   = ParseKeysToIds(umb, siteRoots);
+            var groupRootIds  = ParseKeysToIds(umb, groupRoots);
+            var primaryRootId = ParseKeyToId(umb, primaryRoot);
+
+            var aliases = alias.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (aliases.Length == 0) aliases = new[] { "tidindaelement" };
+
+            var cacheKey = $"search::{q}::{alias}::{siteRoots}::{groupRoots}::{primaryRoot}::{takePerGroup}::{skip}::{take}::{culture}::{mode}::{diag}";
+            if (diag == 0 && _cache.TryGetValue(cacheKey, out var cachedObj) && cachedObj is SearchResponse cached)
+                return Ok(cached);
+
+            var searcher = index.Searcher;
+
+            // ---------- DIAG 1: index-only counters (no Umbraco lookups) ----------
+            if (diag == 1)
+            {
+                var qb = searcher.CreateQuery(IndexTypes.Content);
+
+                var aliasOnly = qb.NativeQuery("*:*")
+                    .And().GroupedOr(AliasFields, aliases)
+                    .Execute().TotalItemCount;
+
+                long aliasPlusSite = -1;
+                if (siteRootIds.Length > 0)
+                {
+                    var siteOr = "(" + string.Join(" OR ", siteRootIds.Select(LoosePathRegexClause)) + ")";
+                    aliasPlusSite = qb.NativeQuery("*:*")
+                        .And().GroupedOr(AliasFields, aliases)
+                        .And().NativeQuery(siteOr)
+                        .Execute().TotalItemCount;
+                }
+
+                var groupsDiag = new List<object>();
+                foreach (var gr in groupRootIds)
+                {
+                    var grRes = qb.NativeQuery("*:*")
+                        .And().GroupedOr(AliasFields, aliases)
+                        .And().NativeQuery(LoosePathRegexClause(gr))
+                        .Execute();
+
+                    groupsDiag.Add(new { groupRootId = gr, total = grRes.TotalItemCount });
+                }
+
+                return Ok(new
+                {
+                    aliasRequested = aliases,
+                    aliasOnly,
+                    aliasPlusSiteRoots = aliasPlusSite,
+                    groupRootBreakdown = groupsDiag
+                });
+            }
+
+            // ---------- DIAG 2: Umbraco content.Path membership ----------
+            if (diag == 2)
+            {
+                var qb = searcher.CreateQuery(IndexTypes.Content);
+
+                var aliasResults = qb.NativeQuery("*:*")
+                    .And().GroupedOr(AliasFields, aliases)
+                    .Execute();
+
+                // Limit to a reasonable sample to avoid heavy lookups
+                var sample = aliasResults.Take(1000).ToList();
+                var groupCounts = groupRootIds.ToDictionary(id => id, _ => 0);
+
+                foreach (var hit in sample)
+                {
+                    if (!int.TryParse(hit.Id, out var id)) continue;
+                    var c = umb.Content.GetById(id);
+                    if (c == null) continue;
+
+                    var path = c.Path ?? string.Empty; // "-1,123,456"
+                    foreach (var gr in groupRootIds)
+                    {
+                        if (ContainsIdToken(path, gr))
+                            groupCounts[gr]++;
+                    }
+                }
+
+                return Ok(new
+                {
+                    sampled = sample.Count,
+                    groupsByPathMembership = groupCounts.Select(kv => new { groupRootId = kv.Key, sampleCount = kv.Value })
+                });
+            }
+
+            // ---------- Normal query (typeahead/full) ----------
+            IBooleanOperation BuildBase(IQuery qb)
+            {
+                var b = qb.NativeQuery("*:*"); // seed
+
+                b = b.And().GroupedOr(AliasFields, aliases);
+
+                if (siteRootIds.Length > 0)
+                {
+                    var siteOr = "(" + string.Join(" OR ", siteRootIds.Select(LoosePathRegexClause)) + ")";
+                    b = b.And().NativeQuery(siteOr);
+                }
+
+                // Optional culture (uncomment and adjust field name if you index it)
+                // if (!string.IsNullOrWhiteSpace(culture))
+                //     b = b.And().Field("__Culture", culture);
+
+                if (!string.IsNullOrWhiteSpace(q))
+                {
+                    var folded = RemoveDiacritics(q);
+                    var terms = string.Equals(folded, q, StringComparison.OrdinalIgnoreCase)
+                        ? new[] { q }
+                        : new[] { q, folded };
+
+                    b = b.And().GroupedOr(DefaultSearchFields, terms);
+                }
+
+                return b;
+            }
+
+            var response = new SearchResponse
+            {
+                Query = q,
+                Primary = null,
+                Groups = new List<SearchGroup>(),
+                Totals = new Totals()
+            };
+
+            // Left column (primary)
+            if (primaryRootId > 0)
+            {
+                var primQuery  = BuildBase(searcher.CreateQuery(IndexTypes.Content))
+                                 .And().NativeQuery(LoosePathRegexClause(primaryRootId));
+                var primResults = primQuery.Execute();
+
+                response.Primary = new SearchGroup
+                {
+                    RootId   = primaryRootId,
+                    RootName = umb.Content.GetById(primaryRootId)?.Name ?? string.Empty,
+                    Total    = primResults.TotalItemCount,
+                    Items    = MapTop(umb, primResults.Skip(skip).Take(take), _urlProvider)
+                };
+            }
+
+            // Right column (group buckets)
+            var effectiveGroupRoots = (groupRootIds.Length > 0)
+                ? groupRootIds
+                : (primaryRootId > 0
+                    ? siteRootIds.Where(id => id != primaryRootId).ToArray()
+                    : siteRootIds);
+
+            foreach (var rootId in effectiveGroupRoots)
+            {
+                var gq       = BuildBase(searcher.CreateQuery(IndexTypes.Content))
+                               .And().NativeQuery(LoosePathRegexClause(rootId));
+                var gresults = gq.Execute();
+
+                response.Groups.Add(new SearchGroup
+                {
+                    RootId   = rootId,
+                    RootName = umb.Content.GetById(rootId)?.Name ?? string.Empty,
+                    Total    = gresults.TotalItemCount,
+                    Items    = MapTop(umb, gresults.Take(takePerGroup), _urlProvider)
+                });
+            }
+
+            // Overall totals
+            var totalsQuery = BuildBase(searcher.CreateQuery(IndexTypes.Content)).Execute();
+            response.Totals.Overall = totalsQuery.TotalItemCount;
+
+            _cache.Set(cacheKey, response, TimeSpan.FromSeconds(mode == "typeahead" ? 10 : 30));
+            return Ok(response);
+        }
+
+        // ---------- Helpers ----------
+
+        // Accepts comma with optional spaces as delimiter, and matches {id} as a whole token.
+        private static string LoosePathRegexClause(int id)
+        {
+            // (^|.*[,\\s])  -> start OR anything ending in comma/space
+            // {id}
+            // ([,\\s].*|$)  -> comma/space then rest OR end
+            return $"{FieldPath}:/(^|.*[,\\s]){id}([,\\s].*|$)/";
+        }
+
+        private static bool ContainsIdToken(string path, int id)
+        {
+            // string check that mirrors the regex token logic (handles optional spaces):
+            // we normalize spaces to nothing for a pure comma-delimited compare
+            var compact = path.Replace(" ", string.Empty);
+            var needle = $",{id},";
+            return compact.Contains(needle, StringComparison.Ordinal) ||
+                   compact.EndsWith(needle.TrimEnd(','), StringComparison.Ordinal) || // ...,{id}
+                   compact.StartsWith(needle.TrimStart(','), StringComparison.Ordinal); // {id},...
+        }
+
+        private static int[] ParseKeysToIds(IUmbracoContext umb, string? csvKeys)
+        {
+            if (string.IsNullOrWhiteSpace(csvKeys)) return Array.Empty<int>();
+            return csvKeys.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                          .Select(s => Guid.TryParse(s, out var g) ? umb.Content?.GetById(g)?.Id ?? 0 : 0)
+                          .Where(id => id > 0)
+                          .Distinct()
+                          .ToArray();
+        }
+
+        private static int ParseKeyToId(IUmbracoContext umb, string? key)
+        {
+            if (string.IsNullOrWhiteSpace(key)) return 0;
+            return Guid.TryParse(key, out var g) ? (umb.Content?.GetById(g)?.Id ?? 0) : 0;
+        }
+
+        private static string RemoveDiacritics(string input)
+        {
+            if (string.IsNullOrEmpty(input)) return input;
+            var norm = input.Normalize(NormalizationForm.FormD);
+            var sb = new StringBuilder(norm.Length);
+            foreach (var ch in norm)
+            {
+                var uc = CharUnicodeInfo.GetUnicodeCategory(ch);
+                if (uc != UnicodeCategory.NonSpacingMark)
+                    sb.Append(ch);
+            }
+            return sb.ToString().Normalize(NormalizationForm.FormC);
+        }
+
+        private static List<SearchItem> MapTop(IUmbracoContext umb, IEnumerable<ISearchResult> results, IPublishedUrlProvider urlProvider)
+        {
+            var items = new List<SearchItem>();
+            foreach (var hit in results)
+            {
+                if (!int.TryParse(hit.Id, out var id)) continue;
+                var c = umb.Content?.GetById(id);
+                if (c == null || !c.IsPublished()) continue;
+
+                items.Add(new SearchItem
+                {
+                    Id   = c.Id,
+                    Name = c.Name ?? string.Empty,
+                    Url  = urlProvider.GetUrl(c) ?? string.Empty
+                });
+            }
+            return items;
+        }
+    }
+
+    // ---------- DTOs (long totals) ----------
+
+    public class SearchResponse
+    {
+        public string? Query { get; set; }
+        public SearchGroup? Primary { get; set; }
+        public List<SearchGroup> Groups { get; set; } = new List<SearchGroup>();
+        public Totals Totals { get; set; } = new Totals();
+    }
+
+    public class SearchGroup
+    {
+        public int RootId { get; set; }
+        public string RootName { get; set; } = string.Empty;
+        public long Total { get; set; }
+        public List<SearchItem> Items { get; set; } = new List<SearchItem>();
+    }
+
+    public class SearchItem
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Url { get; set; } = string.Empty;
+    }
+
+    public class Totals
+    {
+        public long Overall { get; set; }
+    }
+}

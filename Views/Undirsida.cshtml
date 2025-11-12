@@ -1,0 +1,125 @@
+﻿@using System.Linq
+@using Umbraco.Extensions
+@using Umbraco.Cms.Core.Models
+@using Umbraco.Cms.Core.Models.PublishedContent
+@using ContentModels = Umbraco.Cms.Web.Common.PublishedModels;
+@inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage<ContentModels.Undirsida>
+
+@{
+    // --- Robust image handling after media-type change ---
+    // Try to get a URL regardless of whether the property is a string or MediaWithCrops.
+    string myndUrl = null;
+
+    // 1) If your generated model exposes Model.Mynd as MediaWithCrops (typical for Media Picker)
+    try
+    {
+        var mediaWithCrops = Model.Mynd as MediaWithCrops;
+        if (mediaWithCrops != null)
+        {
+            myndUrl = mediaWithCrops.Url();
+        }
+    }
+    catch
+    {
+        // No-op: model might not expose Mynd as MediaWithCrops on this environment
+    }
+
+    // 2) Fallback: read raw string value (works if property used to be a string or mismatched models)
+    if (string.IsNullOrWhiteSpace(myndUrl))
+    {
+        // alias "mynd" assumed from the property; adjust if your alias differs
+        myndUrl = Model.Value<string>("mynd");
+    }
+}
+
+@{
+    Layout = "Master.cshtml";
+
+    const int listLevel = 3;
+
+    var root = Model.Root();
+    var container = Model.AncestorOrSelf(listLevel - 1); // level 2
+
+    var items = (container != null && container.Root().Id == root?.Id)
+        ? container.Children?.Where(x =>
+            x.Value<bool?>("hideInMenu") != true &&
+            x.Value<bool?>("umbracoNaviHide") != true)
+        : Enumerable.Empty<IPublishedContent>();
+
+    // NEW: compute heading from the nearest level-2 ancestor, but only when on a level-3 page
+    string topLevel2Title = null;
+    if (Model.Level == 3)
+    {
+        var level2 = Model.AncestorOrSelf(2);
+        if (level2 != null)
+        {
+            // Prefer custom title properties if you have them; fall back to Name
+            topLevel2Title =
+                level2.Value<string>("pageTitle")
+                ?? level2.Value<string>("title")
+                ?? level2.Name;
+        }
+    }
+}
+
+<section class="content">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-8">
+                @* NEW: render only when on level 3 *@
+                @if (!string.IsNullOrWhiteSpace(topLevel2Title))
+                {
+                    <h3 class="topl-pagename">@topLevel2Title</h3>
+                }
+                <h1 class="page-heading">
+                    @Model.Name
+                </h1>
+
+                @* Safe image render regardless of property type *@
+                @if (!string.IsNullOrWhiteSpace(myndUrl))
+                {
+                    <div class="news-image-wrap">
+                        <img src="@myndUrl" alt="" />
+                    </div>
+                }
+
+                <div class="page-text editor-text">
+                    @Model.Tekstur
+                </div>
+
+                @{
+                    // Access the 'modul' block list directly from the strongly typed model
+                    var blocks = Model.Modul; // strongly-typed block list
+                }
+
+                @if (blocks != null)
+                {
+                    foreach (var block in blocks)
+                    {
+                        @await Html.PartialAsync(
+                            $"~/Views/Partials/BlockList/Components/{block.Content.ContentType.Alias}.cshtml",
+                            block
+                        )
+                    }
+                }
+            </div>
+
+            <div class="col-md-4">
+                <div class="submen-wrapper">
+                    @if (items.Any())
+                    {
+                        <ul>
+                            @foreach (var item in items)
+                            {
+                                var isActive = item.IsAncestorOrSelf(Model);
+                                <li class="@(isActive ? "active" : null)">
+                                    <a href="@item.Url()">@item.Name</a>
+                                </li>
+                            }
+                        </ul>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</section>

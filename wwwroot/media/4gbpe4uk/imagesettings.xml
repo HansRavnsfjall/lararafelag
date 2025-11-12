@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ImageSettings xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Active>true</Active>
+  <Width>1000</Width>
+  <Height>0</Height>
+  <CropOffset>KeepAspectRatio</CropOffset>
+  <Quality>100</Quality>
+  <OverwriteOriginal>true</OverwriteOriginal>
+  <EnforceOutputFormat>false</EnforceOutputFormat>
+  <LimitToTheseExtensions>false</LimitToTheseExtensions>
+  <ProcessedExtensions />
+  <LastApply>2025-09-19T16:42:29.0761636+02:00</LastApply>
+  <ThumbSettings />
+  <ApplySettingsToSubfolders>false</ApplySettingsToSubfolders>
+</ImageSettings>

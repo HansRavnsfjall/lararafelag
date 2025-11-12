@@ -1,0 +1,45 @@
+    @using Umbraco.Cms.Core.Models.Blocks         
+    @using Umbraco.Extensions                 
+    @using ContentModels = Umbraco.Cms.Web.Common.PublishedModels
+    @inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage<BlockListItem<ContentModels.Limaagodar>>
+
+
+@{
+    var content = Model.Content;
+    
+    var tema=content.Temayvirskrift;
+    var do_yvirskrift=content.Yvirskrift_do;
+    var do_tekstur=content.Tekstur_do;
+    var do_leinki=content.Leinki_do.Url;
+    var tekstur=content.Tekstur;
+    var yvirskrift=content.Yvirskrift;
+    var leinki=content.Leinki.Url;
+
+   
+}
+
+
+
+
+      <div class="row limapage">
+        <div class="col-md-6">
+          <h3 class="topl-pagename">@tema</h3>
+          <h1 class="page-heading">
+             @do_yvirskrift
+          </h1>
+          <div class="editor-text">
+            @do_tekstur
+<a href="@do_leinki" target="@content.Leinki_do.Target" class="primary-btn">@content.Leinki_do.Name</a>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="lim-grey-wrapper">
+            <h2>@yvirskrift</h2>
+            <div class="lim-text">
+             @tekstur
+            </div>
+            <a href="@leinki" target="@content.Leinki.Target" class="primary-btn">@content.Leinki.Name</a>
+          </div>
+        </div>
+      </div>
+      </div

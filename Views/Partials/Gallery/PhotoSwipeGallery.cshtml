@@ -1,0 +1,115 @@
+@inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage<IEnumerable<Umbraco.Cms.Core.Models.PublishedContent.IPublishedContent>>
+@using Umbraco.Cms.Core.Models.PublishedContent
+@using Umbraco.Extensions
+@using System.Text
+
+@{
+    var images = (Model ?? Enumerable.Empty<IPublishedContent>()).Where(m => m != null);
+    if (!images.Any()) { <text><!-- No images --></text>; return; }
+
+    // Include assets once per request
+    var key = "pswp-assets-included-umd";
+    var includeAssets = !Context.Items.ContainsKey(key);
+    if (includeAssets) Context.Items[key] = true;
+
+    var galleryId = "pswp-gallery-" + Guid.NewGuid().ToString("N");
+}
+
+@if (includeAssets)
+{
+    <!-- Local PhotoSwipe core styles -->
+    <link rel="stylesheet" href="@Url.Content("~/lib/photoswipe/photoswipe.min.css")" />
+
+    <style>
+        .pswp-gallery { display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); align-items:start; }
+        .pswp-gallery a { display:block; position:relative; border-radius:10px; overflow:hidden; box-shadow:0 2px 10px rgba(0,0,0,.05); transition:transform .18s, box-shadow .18s; }
+        .pswp-gallery a:hover { transform:translateY(-2px); box-shadow:0 6px 18px rgba(0,0,0,.10); }
+        .pswp-gallery img { display:block; width:100%; height:auto; object-fit:cover; }
+        @@media (min-width:900px){ .pswp-gallery a:nth-child(7n) img{aspect-ratio:4/3} .pswp-gallery a:nth-child(7n+3) img{aspect-ratio:3/4} .pswp-gallery a:nth-child(7n+5) img{aspect-ratio:1/1} }
+        .pswp-gallery-wrap{ margin-block:1.5rem; }
+    </style>
+
+    <!-- Local UMD scripts -->
+    <script src="@Url.Content("~/lib/photoswipe/photoswipe.js")"></script>
+    <script src="@Url.Content("~/lib/photoswipe/photoswipe-lightbox.esm.min.js")"></script>
+
+    <script>
+        // Init a given gallery selector
+        window.initPhotoSwipeGallery = function (selector) {
+            if (!window.PhotoSwipeLightbox || !window.PhotoSwipe) return;
+            const lb = new PhotoSwipeLightbox({
+                gallery: selector,
+                children: 'a',
+                showHideAnimationType: 'zoom',
+                wheelToZoom: true,
+                pswpModule: PhotoSwipe // UMD global
+            });
+
+            // Caption from <img alt="">
+            lb.on('uiRegister', function() {
+                lb.pswp.ui.registerElement({
+                    name: 'custom-caption',
+                    order: 9,
+                    isButton: false,
+                    appendTo: 'root',
+                    html: '',
+                    onInit: (el, pswp) => {
+                        pswp.on('change', () => {
+                            const alt = pswp.currSlide?.data?.alt || '';
+                            el.innerHTML = alt
+                                ? '<div class="pswp__custom-caption" style="text-align:center;padding:.5rem 1rem;opacity:.85;">' + alt + '</div>'
+                                : '';
+                        });
+                    }
+                });
+            });
+
+            lb.addFilter('itemData', (data, el) => {
+                const img = el.querySelector('img');
+                if (img && img.alt) data.alt = img.alt;
+                return data;
+            });
+
+            lb.init();
+        };
+    </script>
+}
+
+<section class="pswp-gallery-wrap">
+  <div id="@galleryId" class="pswp-gallery">
+    @foreach (var img in images)
+    {
+        var fullUrl = img.MediaUrl(); if (string.IsNullOrWhiteSpace(fullUrl)) { continue; }
+
+        var w = img.Value<int?>("umbracoWidth");
+        var h = img.Value<int?>("umbracoHeight");
+
+        var t400 = img.GetCropUrl(width: 400);
+        var t800 = img.GetCropUrl(width: 800);
+        var t1200 = img.GetCropUrl(width: 1200);
+        var thumbSrc = t800 ?? t400 ?? fullUrl;
+
+        var sb = new StringBuilder();
+        if (!string.IsNullOrWhiteSpace(t400))  sb.Append($"{t400} 400w, ");
+        if (!string.IsNullOrWhiteSpace(t800))  sb.Append($"{t800} 800w, ");
+        if (!string.IsNullOrWhiteSpace(t1200)) sb.Append($"{t1200} 1200w");
+        var srcsetStr = sb.ToString().Trim().TrimEnd(',');
+
+        var alt = img.Value<string>("altText").NullOrWhiteSpaceAsNull() ?? img.Name ?? "Image";
+
+        <a href="@fullUrl"
+           @(w.HasValue ? Html.Raw($"data-pswp-width=\"{w.Value}\"") : null)
+           @(h.HasValue ? Html.Raw($"data-pswp-height=\"{h.Value}\"") : null)>
+            <img src="@thumbSrc"
+                 @(string.IsNullOrWhiteSpace(srcsetStr) ? null : Html.Raw($"srcset=\"{srcsetStr}\""))
+                 sizes="(max-width:600px) 90vw, (max-width:1200px) 45vw, 30vw"
+                 alt="@alt" loading="lazy" decoding="async" />
+        </a>
+    }
+  </div>
+</section>
+
+<script>
+    // Initialize this instance
+    window.initPhotoSwipeGallery && window.initPhotoSwipeGallery('#@galleryId');
+</script>

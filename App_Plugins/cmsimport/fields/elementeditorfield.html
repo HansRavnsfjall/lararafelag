@@ -1,0 +1,69 @@
+﻿<div ng-controller="cmsimport.elementEditorController">
+    <div ui-sortable  ng-model="model.value.elements">
+        <div ng-repeat="element in model.value.elements" class="umb-block-list__block">
+            <div class="umb-block-list__block--view blockelement__draggable-element">
+                <div class="blockelement-inlineblock-editor">
+                    <div class="cmsimportElementHeader" ng-click="toggleElement(element)" >
+                        <div class="cmsimportElementInfoHeader" ng-class="{cmsimportFirstElementHeader: $first}">
+                            <div class="cmsimportElementInfoIcons">
+                                <span class="cmsimportElementArrow " ng-class="{ cmsimportElementArrowActive: element.active === true,cmsimportElementArrowInActive: element.active === false}"></span>
+                                <umb-icon icon="{{element.elementTypeIcon}}" class="icon"></umb-icon>
+                            </div>
+                            <span >{{element.elementTypeName}}</span>
+                        </div>
+                        <div class="cmsimportDeleteElement">
+                            <button type="button" class="btn-reset umb-outline action --delete " localize="title" ng-click="removeField($index,model.value.elements);" title="general_delete"> <umb-icon icon="icon-trash" class="icon"></umb-icon> </button>
+                        </div>
+                    </div>
+                    <div class="blockelement-inlineblock-editor__inner " ng-show="element.active === true">
+                        <div class="umb-group-panel__content" ng-repeat="prop in element.importMapping[0].propertyInfo">
+                            <div class="control-group umb-control-group ">
+                                <div ng-class="{cmimportFieldError: prop.hasErrors === true}">
+                                    <div ng-show="{{prop.hasErrors}}" class="alert alert-error property-error">
+                                        <ul>
+                                            <li ng-repeat="validationMessage in prop.validationErrors">{{validationMessage}}</li>
+                                        </ul>
+                                    </div>
+                                    <div class="umb-el-wrap cmsimportMappingControl" ng-class="{'cmsimportMappingControlAdvancedSetting' : showAdvancedOptionsForm(prop) === true}">
+                                        <label class="control-label ng-binding" title="pageTitle">
+                                            {{prop.propertyName}}
+                                            <small class="ng-binding" ng-show="prop.showAlias">Alias:{{prop.propertyAlias}}</small>
+                                        </label>
+                                        <div class="controls" noDirtyCheck ng-show="prop.simpleMapping">
+                                            <select ng-model="prop.mappedDataSourceColumn" ng-options="column as column for column in element.importMapping[0].columns"></select> <span ng-show="showAdvancedOptionsOption(prop)" class="icon-settings cmsimportAdvancedIcon" title="Collapse advanced settings" ng-click="toggleForm(prop)"></span>
+                                            <div ng-if="showAdvancedOptionsForm(prop)" class="cmsimportAdvancedSettings cmsimportAdvancedElementSettings">
+                                                <umb-property data-element="property-{{prop.advancedOptionProperties.providerAlia}}" ng-repeat="property in prop.advancedOptionProperties.properties track by property.alias" property="property">
+                                                    <umb-property-editor model="property"></umb-property-editor>
+                                                </umb-property>
+                                            </div>
+                                        </div>
+                                        <div class="controls" noDirtyCheck ng-hide="prop.simpleMapping">
+                                            <umb-property data-element="property-{{prop.propertyAlias}}" ng-repeat="property in prop.elementMapping.elements track by property.PropertyAlias" property="property">
+                                                <umb-property-editor model="property"></umb-property-editor>
+                                            </umb-property>
+                                            <button ng-if="!sortingMode"
+                                                    type="button"
+                                                    class="umb-group-builder__group-add-property"
+                                                    ng-click="addElement(prop.elementMapping.elements)">
+                                                <localize key="cmsimportElementField_addElement">Add Element</localize>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                </div>
+                            </div>
+                    </div>
+                </div>
+
+            </div>
+            
+        </div>
+
+    </div>
+    <button ng-if="!sortingMode"
+            type="button"
+            class="umb-group-builder__group-add-property"
+            ng-click="addElement(model.value.elements)">
+        <localize key="cmsimportElementField_addElement">Add Element</localize>
+    </button>
+</div>

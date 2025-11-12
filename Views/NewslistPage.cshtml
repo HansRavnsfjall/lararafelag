@@ -1,0 +1,395 @@
+﻿@using System
+@using System.Linq
+@using System.Collections.Generic
+@using Umbraco.Extensions
+@using Umbraco.Cms.Core.Models.PublishedContent
+@inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage<IPublishedContent>
+
+@{
+    Layout = "Master";
+
+    // CONFIG
+    var pageSize = 12;
+    var includeDescendants = true;
+
+    var nowUtc = DateTime.UtcNow;
+
+    int? selectedYear = null;
+    if (int.TryParse(Context?.Request?.Query["year"], out var y) && y > 0) selectedYear = y;
+
+    Func<IPublishedContent, bool> hasImmediateNews = n => n.ChildrenOfType("tidindaelement").Any();
+    Func<IPublishedContent, bool> hasDeepNews      = n => n.DescendantsOfType("tidindaelement").Any();
+
+    IPublishedContent container = includeDescendants
+        ? Model.AncestorsOrSelf().FirstOrDefault(hasDeepNews)
+        : Model.AncestorsOrSelf().FirstOrDefault(hasImmediateNews);
+
+    var baseSource = container == null
+        ? Enumerable.Empty<IPublishedContent>()
+        : (includeDescendants
+            ? container.DescendantsOfType("tidindaelement")
+            : container.ChildrenOfType("tidindaelement"));
+
+    var extraRoots = Enumerable.Empty<IPublishedContent>();
+    if (Model.ContentType?.Alias?.InvariantEquals("newsListPage") == true)
+    {
+        extraRoots = Model.Value<IEnumerable<IPublishedContent>>("velAdrarMappur") 
+                     ?? Enumerable.Empty<IPublishedContent>();
+    }
+
+    IEnumerable<IPublishedContent> extraSource = Enumerable.Empty<IPublishedContent>();
+    if (extraRoots.Any())
+    {
+        extraSource = extraRoots.SelectMany(root =>
+        {
+            if (root == null) return Enumerable.Empty<IPublishedContent>();
+            var selfIfItem = root.ContentType.Alias.InvariantEquals("tidindaelement")
+                ? new[] { root }
+                : Enumerable.Empty<IPublishedContent>();
+
+            var branch = includeDescendants
+                ? root.DescendantsOfType("tidindaelement")
+                : root.ChildrenOfType("tidindaelement");
+
+            return selfIfItem.Concat(branch);
+        });
+    }
+
+    var combinedSource = baseSource
+        .Concat(extraSource)
+        .GroupBy(x => x.Key)
+        .Select(g => g.First());
+
+    Func<IPublishedContent, DateTime> getDate = x => x.Value<DateTime?>("dagfesting") ?? x.CreateDate;
+
+    var visibleNowOrPast = combinedSource
+        .Where(x => x.IsVisible() && x.Value<bool?>("hideInMenu") != true)
+        .Where(x => getDate(x) <= nowUtc);
+
+    var years = visibleNowOrPast
+        .Select(x => getDate(x).Year)
+        .Distinct()
+        .OrderByDescending(yy => yy)
+        .ToList();
+
+    var filtered = selectedYear.HasValue
+        ? visibleNowOrPast.Where(x => getDate(x).Year == selectedYear.Value)
+        : visibleNowOrPast;
+
+    var ordered     = filtered.OrderByDescending(x => getDate(x)).ToList();
+    var totalItems  = ordered.Count;
+    var firstBatch  = ordered.Take(pageSize).ToList();
+    var initialLoad = firstBatch.Count();
+
+    var includeDescStr   = includeDescendants ? "1" : "0";
+    var selectedYearStr  = selectedYear?.ToString() ?? "";
+
+    var rootKeys = new List<Guid>();
+    if (container != null) rootKeys.Add(container.Key);
+    rootKeys.AddRange(extraRoots.Where(r => r != null).Select(r => r.Key));
+    var containerKeyStr     = container?.Key.ToString() ?? "";
+    var containerKeysCsvStr = string.Join(",", rootKeys.Distinct().Select(k => k.ToString()));
+
+    var currentRootKey = Model.Root().Key.ToString();
+}
+
+<section class="content">
+  <div class="container">
+    <div class="row">
+      <div class="col-md-12 col-xl-8">
+        <h1 class="page-heading">@Model.Name</h1>
+
+        <div class="submen-wrapper more-news">
+          <div class="newslist-filter row h-100 align-items-center justify-content-center">
+            <div class="col-md-3">
+              <select id="year-filter" class="custom-select">
+                <option value="">Øll ár</option>
+                @foreach (var yr in years)
+                {
+                    if (selectedYear.HasValue && selectedYear.Value == yr)
+                    {
+                        <option value="@yr" selected="selected">@yr</option>
+                    }
+                    else
+                    {
+                        <option value="@yr">@yr</option>
+                    }
+                }
+              </select>
+            </div>
+            <div class="col-md-3">
+              <select id="topic-filter" class="custom-select hide">
+                <option value="" disabled selected hidden>Vel evni</option>
+                <option value="1">Option 1</option>
+                <option value="2">Option 2</option>
+                <option value="3">Option 3</option>
+              </select>
+            </div>
+
+            <div class="col-md-6">
+              <div id="newspaging-count" class="newspaging-count">
+                @if (totalItems == 0)
+                {
+                    <text>Einki funnið</text>
+                }
+                else
+                {
+                    <text>Vísir @initialLoad av @totalItems</text>
+                }
+              </div>
+            </div>
+          </div>
+
+          <ul id="blog-grid"
+              data-container="@containerKeyStr"
+              data-containers="@containerKeysCsvStr"
+              data-currentroot="@currentRootKey"
+              data-take="@pageSize"
+              data-desc="@includeDescStr">
+            @* render SSR first batch with correct target logic *@
+            @foreach (var post in firstBatch)
+            {
+                var date = getDate(post).ToString("dd.MM.yyyy");
+                var title = post.Value<string>("yvirskrift") ?? post.Name;
+                var originRootKey = post.Root().Key.ToString();
+                var showBadge = (originRootKey == "535f7cdc-9c1e-49b9-a115-f79d553b9984" 
+                                 && currentRootKey == "81f22605-925d-4848-bb38-b886783b2083");
+                var target = showBadge ? "_blank" : "_self";
+                var relAttr = showBadge ? " rel=\"noopener\"" : "";
+
+                <li>
+                  <a href="@post.Url()" target="@target"@Html.Raw(relAttr)>
+                    <div class="date">@date</div>
+                    <div class="txt">@title</div>
+                    @if (showBadge)
+                    {
+                      <img src="/icons/lf-tag.svg" alt="LF" title="Tíðindi frá lærarafelagnum" class="lf-tag-inline" />
+                    }
+                  </a>
+                </li>
+            }
+          </ul>
+
+          @if (totalItems > initialLoad)
+          {
+              <div class="row">
+                  <div class="col-12">
+                      <button id="load-more"
+                              class="btn more-news more-news-btn"
+                              data-container="@containerKeyStr"
+                              data-containers="@containerKeysCsvStr"
+                              data-currentroot="@currentRootKey"
+                              data-take="@pageSize"
+                              data-skip="@initialLoad"
+                              data-total="@totalItems"
+                              data-desc="@includeDescStr"
+                              data-year="@selectedYearStr">
+                          Vís fleiri
+                      </button>
+                  </div>
+              </div>
+          }
+        </div>
+
+      </div>
+
+      <div class="col-md-4">
+        <!-- right column content -->
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+#load-more { margin: 1.5rem auto 2rem; display:block; }
+.pagination { display:none; }
+.blog-date { font-size:.9rem; opacity:.75; margin-bottom:.25rem; }
+.read-more { font-size:.9rem; opacity:.8; }
+.lf-tag-inline { width:18px; height:18px; vertical-align:text-bottom; margin-left:.35rem; }
+</style>
+
+<script>
+(function () {
+  const G_SKULABLAÐ = "81f22605-925d-4848-bb38-b886783b2083";
+  const G_LÆRARAF   = "535f7cdc-9c1e-49b9-a115-f79d553b9984";
+
+  const btn        = document.getElementById('load-more');
+  const grid       = document.getElementById('blog-grid');
+  const yearSelect = document.getElementById('year-filter');
+  const countEl    = document.getElementById('newspaging-count');
+
+  function getContainersAttr(el) {
+    const many = (el.dataset.containers || '').trim();
+    if (many) return many;
+    return (el.dataset.container || '').trim();
+  }
+
+  function currentRootGuid() {
+    return (btn?.dataset.currentroot || grid?.dataset.currentroot || "").trim();
+  }
+
+  function shouldShowLararafelagBadge(itemOriginRootKey) {
+    return itemOriginRootKey === G_LÆRARAF && currentRootGuid() === G_SKULABLAÐ;
+  }
+
+  function buildApiUrl(containerIdsCsv, skip, take, includeDescendants, year) {
+    const u = new URL('/umbraco/api/newslistapi/load', window.location.origin);
+    if (containerIdsCsv) u.searchParams.set('containerIds', containerIdsCsv);
+    const firstId = (containerIdsCsv || '').split(',').filter(Boolean)[0] || '';
+    if (firstId) u.searchParams.set('containerId', firstId);
+
+    u.searchParams.set('skip', String(skip));
+    u.searchParams.set('take', String(take));
+    u.searchParams.set('includeDescendants', includeDescendants ? 'true' : 'false');
+    if (year) u.searchParams.set('year', String(year));
+    return u.toString();
+  }
+
+  function escapeHtml(str) {
+    return String(str)
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
+  }
+
+  function renderItems(items) {
+    const frag = document.createDocumentFragment();
+    items.forEach(item => {
+      const li = document.createElement('li');
+
+      const showBadge = shouldShowLararafelagBadge(item.originRootKey);
+      const badgeHtml = showBadge
+        ? `<img src="/icons/lf-tag.svg" alt="LF" title="Tíðindi frá lærarafelagnum" class="lf-tag-inline">`
+        : "";
+
+      const target = showBadge ? '_blank' : '_self';
+      const relAttr = showBadge ? ' rel="noopener"' : '';
+
+      li.innerHTML = `
+        <a href="${item.url}" target="${target}"${relAttr}>
+          <div class="date">${item.dateText}</div>
+          <div class="txt">${escapeHtml(item.title || '')}</div>${badgeHtml}
+        </a>`;
+      frag.appendChild(li);
+    });
+    return frag;
+  }
+
+  function updateCount(loaded, total) {
+    if (!countEl) return;
+    if (total === 0) {
+      countEl.textContent = 'Einki funnið';
+    } else {
+      countEl.textContent = `Vísir ${loaded} av ${total}`;
+    }
+  }
+
+  async function loadMore() {
+    if (!btn) return;
+    const containersCsv     = getContainersAttr(btn);
+    const skip               = parseInt(btn.dataset.skip || '0', 10);
+    const take               = parseInt(btn.dataset.take || '12', 10);
+    const includeDescendants = btn.dataset.desc === '1';
+    const year               = btn.dataset.year || '';
+
+    btn.disabled = true;
+    const originalText = btn.textContent;
+    btn.textContent = 'Hleður…';
+
+    try {
+      const res = await fetch(buildApiUrl(containersCsv, skip, take, includeDescendants, year), {
+        headers: { 'Accept': 'application/json' },
+        credentials: 'same-origin'
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+
+      const data = await res.json();
+      grid.appendChild(renderItems(data.items));
+
+      const loaded = skip + data.items.length;
+      btn.dataset.skip = String(loaded);
+      btn.dataset.total = String(data.total);
+
+      updateCount(loaded, data.total);
+
+      if (loaded >= data.total) {
+        btn.remove();
+      } else {
+        btn.disabled = false;
+        btn.textContent = originalText;
+      }
+    } catch (e) {
+      console.error('API error', e);
+      btn.disabled = false;
+      btn.textContent = 'Okkurt gekk galið – royn aftur';
+    }
+  }
+
+  async function reloadForYear(year) {
+    const stateEl = btn || grid;
+    if (!stateEl) return;
+
+    const containersCsv     = getContainersAttr(stateEl);
+    const take               = parseInt(stateEl.dataset.take || grid.dataset.take || '12', 10);
+    const includeDescendants = (stateEl.dataset.desc || grid.dataset.desc) === '1';
+
+    const url = new URL(window.location.href);
+    if (year) url.searchParams.set('year', year); else url.searchParams.delete('year');
+    window.history.replaceState({}, '', url);
+
+    if (btn) {
+      btn.dataset.year = year || '';
+      btn.dataset.skip = '0';
+      btn.disabled = true;
+      btn.textContent = 'Heintar...';
+    }
+
+    try {
+      const res = await fetch(buildApiUrl(containersCsv, 0, take, includeDescendants, year), {
+        headers: { 'Accept': 'application/json' },
+        credentials: 'same-origin'
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+
+      grid.innerHTML = '';
+      grid.appendChild(renderItems(data.items));
+
+      const loaded = data.items.length;
+      updateCount(loaded, data.total);
+
+      if (btn) {
+        btn.dataset.skip  = String(loaded);
+        btn.dataset.total = String(data.total);
+
+        if (loaded >= data.total || data.total === 0) {
+          if (btn.parentElement) btn.parentElement.style.display = 'none';
+        } else {
+          btn.disabled = false;
+          btn.textContent = 'Vís fleiri';
+          if (btn.parentElement) btn.parentElement.style.display = '';
+        }
+      }
+    } catch (e) {
+      console.error(e);
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Okkurt gekk galið – royn aftur';
+      }
+    }
+  }
+
+  if (btn) btn.addEventListener('click', loadMore);
+  if (yearSelect) {
+    yearSelect.addEventListener('change', () => reloadForYear(yearSelect.value));
+  }
+
+  if (btn) {
+    const initialLoaded = parseInt(btn.dataset.skip || '0', 10);
+    const initialTotal  = parseInt(btn.dataset.total || '0', 10);
+    updateCount(initialLoaded, initialTotal);
+  }
+})();
+</script>

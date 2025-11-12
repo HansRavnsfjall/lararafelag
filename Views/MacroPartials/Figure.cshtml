@@ -1,0 +1,133 @@
+@inherits Umbraco.Cms.Web.Common.Macros.PartialViewMacroPage
+@using System
+@using System.Linq
+@using System.Collections.Generic
+@using System.Text.Json
+@using System.Text.Json.Nodes
+@using Umbraco.Cms.Core
+@using Umbraco.Cms.Core.Models.PublishedContent
+@using Umbraco.Extensions
+
+@functions {
+    string? Param(string key) => Model.MacroParameters.TryGetValue(key, out var v) ? v?.ToString() : null;
+
+    IPublishedContent? CoerceToSingle(object? obj)
+    {
+        if (obj is IPublishedContent one) return one;
+        if (obj is IEnumerable<IPublishedContent> many) return many.FirstOrDefault();
+        return null;
+    }
+
+    IPublishedContent? ResolveByAnyString(string? s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return null;
+
+        // Prefer UDI
+        if (UdiParser.TryParse(s, out GuidUdi udi))
+            return CoerceToSingle(Umbraco.Media(udi));
+
+        // GUID -> use GuidUdi (avoids IEnumerable quirks)
+        if (Guid.TryParse(s, out var g))
+            return CoerceToSingle(Umbraco.Media(new GuidUdi(Constants.UdiEntityType.Media, g)));
+
+        // Numeric Id
+        if (int.TryParse(s, out var id))
+            return CoerceToSingle(Umbraco.Media(id));
+
+        return null;
+    }
+
+    // Accepts single UDI/Id/Guid OR JSON array/object from MultipleMediaPicker
+    IPublishedContent? ResolveFirstMedia(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+        var s = raw.Trim();
+
+        if (s.StartsWith("[") || s.StartsWith("{"))
+        {
+            try
+            {
+                JsonNode? node = JsonNode.Parse(s);
+                if (node is JsonArray arr && arr.Count > 0)
+                {
+                    foreach (var el in arr)
+                    {
+                        var udiStr = el?.AsValue()?.ToString();
+                        if (string.IsNullOrWhiteSpace(udiStr) && el is JsonObject obj && obj.TryGetPropertyValue("udi", out var udiNode))
+                            udiStr = udiNode?.ToString();
+
+                        var m = ResolveByAnyString(udiStr);
+                        if (m != null) return m;
+                    }
+                }
+                else if (node is JsonObject obj && obj.TryGetPropertyValue("udi", out var udiNode))
+                {
+                    var m = ResolveByAnyString(udiNode?.ToString());
+                    if (m != null) return m;
+                }
+            }
+            catch { /* fall through to non-JSON path */ }
+        }
+
+        return ResolveByAnyString(s);
+    }
+}
+
+@{
+    // ---- OUTPUT CONFIG ----
+    const int MAX_WIDTH = 1200;   // cap delivered width
+    const int QUALITY   = 80;     // compression
+    int[] srcsetWidths  = new[] { 480, 768, 1024, 1200 };
+
+    // Macro params (your media param alias stays "image")
+    var imageParam = Param("image");
+    var caption    = Param("caption");
+    var align      = Param("align") ?? "full";   // left | right | full
+    var alt        = Param("alt");
+    var cropAlias  = Param("crop");              // optional
+
+    var media = ResolveFirstMedia(imageParam);
+    if (media is null)
+    {
+        @:<span class="text-muted small">[Figure: no image]</span>
+        return;
+    }
+
+    // Umbraco 13: no named 'upScale' arg => use furtherOptions
+    string UrlForWidth(int w) =>
+        !string.IsNullOrWhiteSpace(cropAlias)
+            ? media.GetCropUrl(cropAlias: cropAlias, width: w, quality: QUALITY, furtherOptions: "upscale=false&format=webp")
+            : media.GetCropUrl(width: w, quality: QUALITY, furtherOptions: "upscale=false&format=webp");
+
+    var src = UrlForWidth(MAX_WIDTH);
+    if (string.IsNullOrWhiteSpace(src))
+    {
+        @:<span class="text-muted small">[Figure: missing url]</span>
+        return;
+    }
+
+    var srcset = string.Join(", ", srcsetWidths.Select(w => $"{UrlForWidth(w)} {w}w"));
+    var sizes  = "(min-width: 768px) 80vw, 100vw";
+
+    var altText  = !string.IsNullOrWhiteSpace(alt) ? alt : (media.Name ?? "");
+    var figureCls = align switch
+    {
+        "left"  => "figure figure-left",
+        "right" => "figure figure-right",
+        _       => "figure figure-full"
+    };
+}
+
+<figure class="@figureCls">
+  <img
+    src="@src"
+    srcset="@srcset"
+    sizes="@sizes"
+    alt="@altText"
+    loading="lazy"
+    decoding="async" />
+  @if (!string.IsNullOrWhiteSpace(caption))
+  {
+    <figcaption>@caption</figcaption>
+  }
+</figure>

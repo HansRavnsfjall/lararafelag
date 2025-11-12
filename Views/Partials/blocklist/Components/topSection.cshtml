@@ -1,0 +1,55 @@
+    @using Umbraco.Cms.Core.Models.Blocks         
+    @using Umbraco.Extensions                 
+    @using ContentModels = Umbraco.Cms.Web.Common.PublishedModels
+    @inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage<BlockListItem<ContentModels.TopSection>>
+
+@{
+    var content = Model.Content;
+
+    // strongly-typed properties from your generated model
+    var leinkitilfelag = content.LeinkiTilFelagid;
+    var leinkiLimir    = content.LeinkiTilLimaagodar;
+
+    var img  = content.Mynd;
+    var imageUrl         = img?.Url();
+}
+
+<section class="front-hero">
+    <div class="container">
+        <div class="row">
+            <div class="col-12 col-md-6">
+                <div class="intro">
+                    <h1>@content.Yvirskrift</h1>
+                    <div class="txt">
+                        @content.Tekstur
+                    </div>
+                    <div class="links">
+                        @if (leinkitilfelag is not null)
+                        {
+                            <a class="redblue" href="@leinkitilfelag.Url" target="@leinkitilfelag.Target">
+                                @(string.IsNullOrWhiteSpace(leinkitilfelag.Name) ? "Les meira" : leinkitilfelag.Name)
+                            </a>
+                        }
+                        @if (leinkiLimir is not null)
+                        {
+                            <a class="redblue" href="@leinkiLimir.Url" target="@leinkiLimir.Target">
+                                @(string.IsNullOrWhiteSpace(leinkiLimir.Name) ? "Limaágóðar" : leinkiLimir.Name)
+                            </a>
+                        }
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-md-6">
+                <div class="bladcontent">
+                    @if (!string.IsNullOrWhiteSpace(imageUrl))
+                    {
+                        <img src="@imageUrl" alt="@img?.Name" />
+                    }
+                    <div class="splash">
+                        @Html.Raw(content.TeksturSkulabladid?.ToString().Replace("<p>", "").Replace("</p>", ""))
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>

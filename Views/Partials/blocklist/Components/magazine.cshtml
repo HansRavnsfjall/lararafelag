@@ -1,0 +1,31 @@
+@using Umbraco.Cms.Core.Models.Blocks
+@using Umbraco.Cms.Core.Models.PublishedContent
+@using Umbraco.Extensions
+@inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage<BlockListItem>
+
+@{
+    var block = Model.Content; // IPublishedElement
+    var image = block.Value<IPublishedContent>("mynd");
+}
+
+<section class="magzine">
+    <div class="container">
+        <div class="row mag-row align-items-center">
+            <div class="col-md-6">
+                @if (image != null)
+                {
+                    <img src="@image.Url()" alt="@image.Name" class="img-fluid" />
+                }
+            </div>
+            <div class="col-md-6">
+                <div class="mag-text">
+                    <h3>@(block.Value<string>("yvirskrift"))</h3>
+                    <div class="intro">
+                        @Html.Raw(block.Value<string>("tekstur"))
+                    </div>
+                    <a href="/um-skulabladid/haldari/" class="more-news">Gerst haldari</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>

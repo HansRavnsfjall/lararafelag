@@ -1,0 +1,38 @@
+@using System.Linq
+@using Umbraco.Cms.Core.Models.Blocks
+@using Umbraco.Cms.Core.Models.PublishedContent
+@using Umbraco.Extensions
+@inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage<BlockListItem>
+
+@{
+    // Change this if your source pages use another Block List alias:
+    const string BlockPropAlias = "modul"; // <-- set to your block list property alias
+
+    var el         = (IPublishedElement)Model.Content; // this RenderFromPage element
+    var sourcePage = el.Value<IPublishedContent>("sourcePage");
+    var indexOpt   = el.Value<int?>("blockIndex");
+    var list       = sourcePage?.Value<BlockListModel>(BlockPropAlias);
+
+    if (list == null || list.Count == 0)
+    {
+        // nothing to render
+        return;
+    }
+
+    if (indexOpt.HasValue)
+    {
+        var i = indexOpt.Value;
+        if (i >= 0 && i < list.Count)
+        {
+            var block = list[i];
+            @await Html.PartialAsync("BlockList/Components/" + block.Content.ContentType.Alias, block)
+        }
+        return; // done
+    }
+
+    // No index: render all blocks from the source
+    foreach (var block in list)
+    {
+        @await Html.PartialAsync("BlockList/Components/" + block.Content.ContentType.Alias, block)
+    }
+}

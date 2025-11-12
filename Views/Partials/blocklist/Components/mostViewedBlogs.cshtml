@@ -1,0 +1,132 @@
+@using System
+@using System.Linq
+@using System.Collections.Generic
+@using Umbraco.Cms.Core.Models.Blocks
+@using Umbraco.Cms.Core.Models
+@using Umbraco.Cms.Core.Models.PublishedContent
+@using Umbraco.Extensions
+@inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage<BlockListItem>
+
+@inject Lararafelagid.Services.MostViewed.IMostViewedQueryService Query
+@inject Microsoft.Extensions.Configuration.IConfiguration Cfg
+@inject Umbraco.Cms.Web.Common.UmbracoHelper UmbracoHelper
+
+@{
+    // How many items to show (read from block property alias; fallback to 4)
+    var configuredCount = Model.Content.Value<int?>("TalAvTidindum");
+    var takeCount = (configuredCount.HasValue && configuredCount.Value > 0) ? configuredCount.Value : 4;
+
+    // IDs already rendered above by one or more "Newest" partials
+    var excludeIds = Context.Items["RenderedPostIds"] as HashSet<int> ?? new HashSet<int>();
+
+    // Config (no Binder dependency)
+    var days = int.TryParse(Cfg["MostViewed:DaysWindow"], out var dw) ? dw : 60;
+    var allowedAliases = Cfg.GetSection("MostViewed:AllowedDocTypeAliases")
+                            .GetChildren()
+                            .Select(x => x.Value)
+                            .Where(v => !string.IsNullOrWhiteSpace(v))
+                            .ToArray();
+    if (allowedAliases.Length == 0)
+        allowedAliases = new[] { "tidindaelement" }; // default blog alias
+
+    // We now de-dup against excludeIds instead of skipping top N
+    var skipTop = 0;
+
+    // Ask for extra headroom so we still fill after exclusions
+    var headroom = excludeIds.Count + 16;
+
+    var hits = await Query.GetTopAsync(days: days, skipTop: skipTop, take: takeCount + headroom, allowedAliases: allowedAliases);
+
+    List<IPublishedContent> MapHits(IEnumerable<(int nodeId, int views)> hs)
+    {
+        return hs
+            .Select(h => UmbracoHelper.Content(h.nodeId))
+            .OfType<IPublishedContent>()                           // drop nulls
+            .Where(c => c.IsVisible())                              // only visible
+            .Where(c => allowedAliases.Contains(c.ContentType.Alias, StringComparer.OrdinalIgnoreCase))
+            .Where(c => !excludeIds.Contains(c.Id))                 // <- de-dup with "Newest"
+            .GroupBy(c => c.Id)                                     // unique by node
+            .Select(g => g.First())
+            .Take(takeCount)
+            .ToList();
+    }
+
+    var elements = MapHits(hits);
+
+    // Optional: widen if we still don't have enough after exclusions
+    if (elements.Count < takeCount)
+    {
+        var moreHits = await Query.GetTopAsync(days: days, skipTop: 0, take: takeCount + headroom + 32, allowedAliases: allowedAliases);
+        elements = MapHits(moreHits);
+    }
+
+    string GetCropUrl(MediaWithCrops? mwc, string cropAlias)
+    {
+        if (mwc == null) return string.Empty;
+        var cu = mwc.GetCropUrl(cropAlias);
+        return string.IsNullOrWhiteSpace(cu) ? mwc.Url() : cu!;
+    }
+}
+
+<section class="front-greinar mostread">
+    <div class="container bloglist most-read">
+        <div class="row">
+            <div class="col-12 text-center">
+                <h3>Mest lisið</h3>
+            </div>
+        </div>
+        <div class="row">
+            @if (elements.Any())
+            {
+                foreach (var item in elements)
+                {
+                    var title = item.Name;
+                    var intro = item.Value<string>("inngangstekstur");
+                    var date  = item.Value<DateTime?>("dagfesting");
+                    var image = item.Value<MediaWithCrops>("mynd");
+                    var link  = item.Url();
+
+                    <div class="col-12 col-md-6">
+                        <a href="@link" class="news-item hover-shadow rounded10">
+                            <div class="img-wrap">
+                                @if (image != null)
+                                {
+                                    var cropUrl = GetCropUrl(image, "squareList");
+                                    <img src="@cropUrl" alt="@title" />
+                                }
+                            </div>
+
+                            <div class="txt-wrap">
+                                <div class="tema">Tíðindi</div>
+                                <div class="yvirskrift">@title</div>
+
+                                @* disabled like your sample *@
+                                @if (date.HasValue && date.Value != default && 1==2)
+                                {
+                                    <div class="date">@date.Value.ToString("dd. MMMM yyyy")</div>
+                                }
+                                @if (!string.IsNullOrEmpty(intro) && 1==2)
+                                {
+                                    var truncatedIntro = intro.Length > 240 
+                                        ? intro.Substring(0, 240) + "…"
+                                        : intro;
+                                    <div class="introtext">@truncatedIntro</div>
+                                }
+
+                                <svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 38 38" fill="none">
+                                    <path d="M28.5 20.5833V30.0833C28.5 30.9232 28.1664 31.7286 27.5725 32.3225C26.9786 32.9164 26.1732 33.25 25.3333 33.25H7.91667C7.07681 33.25 6.27136 32.9164 5.6775 32.3225C5.08363 31.7286 4.75 30.9232 4.75 30.0833V12.6667C4.75 11.8268 5.08363 11.0214 5.6775 10.4275C6.27136 9.83363 7.07681 9.5 7.91667 9.5H17.4167M23.75 4.75H33.25M33.25 4.75V14.25M33.25 4.75L15.8333 22.1667" stroke="#F5F5F5" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </div>
+                        </a>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="col-12">
+                    <p>Onki funnið.</p>
+                </div>
+            }
+        </div>
+    </div>
+</section>
