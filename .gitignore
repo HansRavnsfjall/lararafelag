@@ -426,3 +426,21 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# --- Umbraco (.NET) specifics ---
+# runtime/backoffice generated stuff
+umbraco/
+App_Data/
+data/
+TEMP/
+logs/
+*.log
+
+# media & uploads (keep out of git; back up elsewhere or via storage provider)
+wwwroot/media/
+media/
+wwwroot/uploads/
+
+# package bins inside App_Plugins
+App_Plugins/**/bin/
+wwwroot/App_Plugins/**/bin/
