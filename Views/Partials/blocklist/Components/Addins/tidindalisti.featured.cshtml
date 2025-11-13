@@ -19,7 +19,30 @@
 
     var sources = content.Sources;
 
-    var now = DateTime.UtcNow;
+    // --- Faroese time, cross-platform + safe fallbacks (Windows at Simply.com vs Linux locally) ---
+    string tzId = OperatingSystem.IsWindows() ? "GMT Standard Time" : "Atlantic/Faroe";
+    TimeZoneInfo faroeseZone;
+    try
+    {
+        faroeseZone = TimeZoneInfo.FindSystemTimeZoneById(tzId);
+    }
+    catch
+    {
+        // Extra fallbacks some hosts use
+        var candidates = new[] { "Atlantic/Faeroe", "Europe/London", "WET", "UTC" };
+        faroeseZone = null;
+        foreach (var id in candidates)
+        {
+            try { faroeseZone = TimeZoneInfo.FindSystemTimeZoneById(id); break; } catch { }
+        }
+        faroeseZone ??= TimeZoneInfo.Utc; // never crash
+    }
+
+    // Compare by DATE (not time) to avoid “later today” hiding posts
+    var faroeseToday = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, faroeseZone).Date;
+
+    // Culture-aware visibility (prevents items hidden by culture from disappearing unexpectedly)
+    var culture = System.Globalization.CultureInfo.CurrentUICulture?.Name ?? "";
 
     var items = Enumerable.Empty<IPublishedContent>();
     if (sources != null && sources.Any())
@@ -27,10 +50,10 @@
         items = sources
             .SelectMany(parent => parent
                 .DescendantsOfType("tidindaelement")
-                .Where(x => x.IsVisible()))
+                .Where(x => x.IsPublished(culture) && !x.Value<bool>("umbracoNaviHide")))
             .DistinctBy(x => x.Id)
-            .Select(x => new { Node = x, Date = x.Value<DateTime?>("dagfesting") ?? DateTime.MinValue })
-            .Where(x => x.Date <= now)   // ✅ UTC filter
+            .Select(x => new { Node = x, Date = x.Value<DateTime?>("dagfesting") ?? x.CreateDate })
+            .Where(x => x.Date.Date <= faroeseToday) // ⬅️ Faroe local DATE
             .OrderByDescending(x => x.Date)
             .Skip(startFrom)
             .Take(takeCount)
@@ -77,7 +100,7 @@
                 // Determine the item's own site root
                 var itemRootKey = item.Root()?.Key;
                 bool showLfTag = isSkulablad && itemRootKey == laerarafelagRoot;
-                var target= @showLfTag ? "_blank" : "_self";
+                var target = showLfTag ? "_blank" : "_self";
 
                 <div class="row g-0 mb-4" style="background:#F0F0F0;">
                     <!-- Text column: left on desktop, second on mobile -->
@@ -111,14 +134,12 @@
                                 @if (!string.IsNullOrWhiteSpace(crop))
                                 {
                                     <img src="@crop?format=webp" alt="@title" class="img-fluid w-100 h-100 object-fit-cover" />
-                                    @* Insert the LF tag image immediately after the main image, conditionally *@
-                                   
                                 }
                             </div>
-                             @if (showLfTag)
-                                    {
-                                        <img src="/icons/lf-tag.svg" title="Tíðindi frá Lærarafelagnum" alt="LF tag" class="lf-tag-featured" />
-                                    }
+                            @if (showLfTag)
+                            {
+                                <img src="/icons/lf-tag.svg" title="Tíðindi frá Lærarafelagnum" alt="LF tag" class="lf-tag-featured" />
+                            }
                         </a>
                     </div>
                 </div>
