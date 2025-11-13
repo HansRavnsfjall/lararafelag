@@ -37,9 +37,39 @@
     // Selected sources (MNTP): IEnumerable<IPublishedContent>
     var sources = content.Sources;
 
-    var now = DateTime.UtcNow;   // use UTC/GMT
+    // --- Faroese time, cross-platform + safe fallbacks ---
+    string tzId = OperatingSystem.IsWindows() ? "GMT Standard Time" : "Atlantic/Faroe";
+    TimeZoneInfo faroeseZone;
+    try
+    {
+        faroeseZone = TimeZoneInfo.FindSystemTimeZoneById(tzId);
+    }
+    catch
+    {
+        var candidates = new[] { "Atlantic/Faeroe", "Europe/London", "WET", "UTC" };
+        faroeseZone = null;
+        foreach (var id in candidates)
+        {
+            try { faroeseZone = TimeZoneInfo.FindSystemTimeZoneById(id); break; } catch { }
+        }
+        faroeseZone ??= TimeZoneInfo.Utc;
+    }
 
-    // Collect descendants of type "tidindaelement", only visible, sort by dagfesting desc, skip/take
+    // Interpret dagfesting as Faroe-local clock time and compare to UTC now
+    DateTime GetPublishUtc(Umbraco.Cms.Core.Models.PublishedContent.IPublishedContent x)
+    {
+        var d = x.Value<DateTime?>("dagfesting") ?? x.CreateDate;
+
+        if (d.Kind == DateTimeKind.Utc)
+            return d;
+
+        var naive = new DateTime(d.Year, d.Month, d.Day, d.Hour, d.Minute, d.Second, DateTimeKind.Unspecified);
+        return TimeZoneInfo.ConvertTimeToUtc(naive, faroeseZone);
+    }
+
+    var nowUtc = DateTime.UtcNow;
+
+    // Collect descendants of type "tidindaelement", only visible, only if publish datetime is now/past
     var elements = Enumerable.Empty<Umbraco.Cms.Core.Models.PublishedContent.IPublishedContent>();
 
     if (sources != null && sources.Any())
@@ -52,11 +82,11 @@
             .DistinctBy(x => x.Id)
             .Select(x => new
             {
-                Node = x,
-                Date = x.Value<DateTime?>("dagfesting") ?? DateTime.MinValue
+                Node    = x,
+                DateUtc = GetPublishUtc(x)
             })
-            .Where(x => x.Date <= now)                     // only past/present dates
-            .OrderByDescending(x => x.Date)                // newest first
+            .Where(x => x.DateUtc <= nowUtc)              // ⬅️ only past/present in Faroe time
+            .OrderByDescending(x => x.DateUtc)            // newest first
             .Skip(startFrom)
             .Take(takeCount)
             .Select(x => x.Node)
@@ -107,11 +137,11 @@
                             </div>
 
                             <div class="txt-wrap relative">
-                             @* ✅ LF badge when item is from Lærarafelagið and current site is Skúlablaðið *@
-                                    @if (showLfTag(item))
-                                    {
-                                        <img src="/icons/lf-tag.svg" title="Tíðindi frá Lærarafelagnum" alt="LF" class="lf-tag-standard" />
-                                    }
+                                @* ✅ LF badge when item is from Lærarafelagið and current site is Skúlablaðið *@
+                                @if (showLfTag(item))
+                                {
+                                    <img src="/icons/lf-tag.svg" title="Tíðindi frá Lærarafelagnum" alt="LF" class="lf-tag-standard" />
+                                }
                                 @if (!string.IsNullOrWhiteSpace(tema))
                                 {
                                     <div class="tema">@tema</div>
@@ -119,7 +149,6 @@
 
                                 <div class="yvirskrift">
                                     @title
-                                   
                                 </div>
 
                                 @if (date.HasValue && date.Value != default)
@@ -150,10 +179,7 @@
 
         <div class="row pt-60">
             <div class="col-12 text-center">
-             
-                    <a class="more-news" href="/tidindi">Øll tíðindi</a>
-               
-               
+                <a class="more-news" href="/tidindi">Øll tíðindi</a>
             </div>
         </div>
     </div>

@@ -59,18 +59,18 @@ namespace lararafelagid
             var faroeTz = GetFaroeTimeZone();
             var nowUtc  = DateTime.UtcNow;
 
-            // Helper: prefer dagfesting; fallback to CreateDate; normalize to UTC
+            // Helper: prefer dagfesting; fallback to CreateDate; interpret as Faroe-local clock time and normalize to UTC
             DateTime GetDateUtc(Umbraco.Cms.Core.Models.PublishedContent.IPublishedContent x)
             {
                 var d = x.Value<DateTime?>("dagfesting") ?? x.CreateDate;
 
-                // If it already knows its kind, respect it
-                if (d.Kind == DateTimeKind.Utc)   return d;
-                if (d.Kind == DateTimeKind.Local) return d.ToUniversalTime();
+                // If it is explicitly UTC, respect that
+                if (d.Kind == DateTimeKind.Utc)
+                    return d;
 
-                // Unspecified: interpret as Faroe local then convert to UTC
-                var unspecified = DateTime.SpecifyKind(d, DateTimeKind.Unspecified);
-                return TimeZoneInfo.ConvertTimeToUtc(unspecified, faroeTz);
+                // For Local or Unspecified: treat the stored clock time as Faroe local
+                var naive = new DateTime(d.Year, d.Month, d.Day, d.Hour, d.Minute, d.Second, DateTimeKind.Unspecified);
+                return TimeZoneInfo.ConvertTimeToUtc(naive, faroeTz);
             }
 
             // Build combined source from one or more roots
@@ -90,10 +90,9 @@ namespace lararafelagid
                     ? root.DescendantsOfType("tidindaelement")
                     : root.ChildrenOfType("tidindaelement");
 
-            combined = (combined ?? Enumerable.Empty<IPublishedContent>())
-    .Concat(selfIfItem ?? Enumerable.Empty<IPublishedContent>())
-    .Concat(branch ?? Enumerable.Empty<IPublishedContent>());
-
+                combined = (combined ?? Enumerable.Empty<IPublishedContent>())
+                    .Concat(selfIfItem ?? Enumerable.Empty<IPublishedContent>())
+                    .Concat(branch ?? Enumerable.Empty<IPublishedContent>());
             }
 
             if (!combined.Any())

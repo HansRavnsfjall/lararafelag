@@ -21,7 +21,37 @@
     // Selected sources (MNTP): IEnumerable<IPublishedContent>
     var sources = content.Sources;
 
-    var now = DateTime.UtcNow;   // ✅ GMT/UTC
+    // --- Faroese time, cross-platform + safe fallbacks ---
+    string tzId = OperatingSystem.IsWindows() ? "GMT Standard Time" : "Atlantic/Faroe";
+    TimeZoneInfo faroeseZone;
+    try
+    {
+        faroeseZone = TimeZoneInfo.FindSystemTimeZoneById(tzId);
+    }
+    catch
+    {
+        var candidates = new[] { "Atlantic/Faeroe", "Europe/London", "WET", "UTC" };
+        faroeseZone = null;
+        foreach (var id in candidates)
+        {
+            try { faroeseZone = TimeZoneInfo.FindSystemTimeZoneById(id); break; } catch { }
+        }
+        faroeseZone ??= TimeZoneInfo.Utc;
+    }
+
+    // Interpret dagfesting as Faroe-local clock time and compare to UTC now
+    DateTime GetPublishUtc(Umbraco.Cms.Core.Models.PublishedContent.IPublishedContent x)
+    {
+        var d = x.Value<DateTime?>("dagfesting") ?? x.CreateDate;
+
+        if (d.Kind == DateTimeKind.Utc)
+            return d;
+
+        var naive = new DateTime(d.Year, d.Month, d.Day, d.Hour, d.Minute, d.Second, DateTimeKind.Unspecified);
+        return TimeZoneInfo.ConvertTimeToUtc(naive, faroeseZone);
+    }
+
+    var nowUtc = DateTime.UtcNow;   // ✅ compare using UTC
 
     // Collect descendants of type "tidindaelement", only visible, filter by dagfesting, sort, skip/take
     var elements = Enumerable.Empty<Umbraco.Cms.Core.Models.PublishedContent.IPublishedContent>();
@@ -35,11 +65,11 @@
             .DistinctBy(x => x.Id)
             .Select(x => new
             {
-                Node = x,
-                Date = x.Value<DateTime?>("dagfesting") ?? DateTime.MinValue
+                Node    = x,
+                DateUtc = GetPublishUtc(x)
             })
-            .Where(x => x.Date <= now)                     // ✅ only past/present dates
-            .OrderByDescending(x => x.Date)
+            .Where(x => x.DateUtc <= nowUtc)               // ✅ only items where (Faroe time) is now/past
+            .OrderByDescending(x => x.DateUtc)
             .Skip(startFrom)
             .Take(takeCount)
             .Select(x => x.Node)

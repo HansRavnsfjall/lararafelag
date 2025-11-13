@@ -21,17 +21,53 @@
     // Selected sources (MNTP)
     var sources = content.Sources;
 
-    // Collect descendants of type "tidindaelement", only visible, sort by dagfesting desc, skip/take
+    // --- Faroese time, cross-platform + safe fallbacks ---
+    string tzId = OperatingSystem.IsWindows() ? "GMT Standard Time" : "Atlantic/Faroe";
+    TimeZoneInfo faroeseZone;
+    try
+    {
+        faroeseZone = TimeZoneInfo.FindSystemTimeZoneById(tzId);
+    }
+    catch
+    {
+        var candidates = new[] { "Atlantic/Faeroe", "Europe/London", "WET", "UTC" };
+        faroeseZone = null;
+        foreach (var id in candidates)
+        {
+            try { faroeseZone = TimeZoneInfo.FindSystemTimeZoneById(id); break; } catch { }
+        }
+        faroeseZone ??= TimeZoneInfo.Utc;
+    }
+
+    // Interpret dagfesting as Faroe-local clock time and compare to UTC now
+    DateTime GetPublishUtc(Umbraco.Cms.Core.Models.PublishedContent.IPublishedContent x)
+    {
+        var d = x.Value<DateTime?>("dagfesting") ?? x.CreateDate;
+
+        if (d.Kind == DateTimeKind.Utc)
+            return d;
+
+        var naive = new DateTime(d.Year, d.Month, d.Day, d.Hour, d.Minute, d.Second, DateTimeKind.Unspecified);
+        return TimeZoneInfo.ConvertTimeToUtc(naive, faroeseZone);
+    }
+
+    var nowUtc = DateTime.UtcNow;
+
+    // Collect descendants of type "tidindaelement", only visible,
+    // only if publish datetime is now/past, sort by publish date desc, skip/take
     var elements = Enumerable.Empty<Umbraco.Cms.Core.Models.PublishedContent.IPublishedContent>();
     if (sources != null && sources.Any())
     {
         elements = sources
-            .SelectMany(parent => parent.DescendantsOfType("tidindaelement").Where(x => x.IsVisible()))
+            .SelectMany(parent => parent
+                .DescendantsOfType("tidindaelement")
+                .Where(x => x.IsVisible()))
             .DistinctBy(x => x.Id)
-            .Select(x => new { Node = x, Date = x.Value<DateTime?>("dagfesting") ?? DateTime.MinValue })
-            .OrderByDescending(x => x.Date)
+            .Select(x => new { Node = x, DateUtc = GetPublishUtc(x) })
+            .Where(x => x.DateUtc <= nowUtc)                  // ⬅️ only show when news datetime is now/past (Faroe time)
+            .OrderByDescending(x => x.DateUtc)
             .Skip(startFrom)
-            .Take(Math.Max(takeCount, 4)) // ensure we can render 1 + 3 when available
+            .Take(Math.Max(takeCount, 4))                     // ensure we can render 1 + 3 when available
             .Select(x => x.Node)
             .ToList();
     }

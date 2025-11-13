@@ -103,24 +103,19 @@ namespace Lararafelagid.Controllers
 
             if (!_examine.TryGetIndex(Constants.UmbracoIndexes.ExternalIndexName, out var index) || index == null)
                 return Ok(new SearchResponse());
-
             if (!_ctx.TryGetUmbracoContext(out var umb) || umb?.Content == null)
                 return Ok(new SearchResponse());
-            var umbCtx = umb; // non-null beyond this point
 
-            var siteRootIds   = ParseKeysToIds(umbCtx, siteRoots);
-            var groupRootIds  = ParseKeysToIds(umbCtx, groupRoots);
-            var primaryRootId = ParseKeyToId(umbCtx, primaryRoot);
-
-            // Use a safe array for groupRootIds to avoid nullable warnings
-            var groupRootIdsSafe = groupRootIds ?? Array.Empty<int>();
+            var siteRootIds   = ParseKeysToIds(umb, siteRoots);
+            var groupRootIds  = ParseKeysToIds(umb, groupRoots);
+            var primaryRootId = ParseKeyToId(umb, primaryRoot);
 
             // Auto-discover groups if requested and none provided
-            if ((groupRootIdsSafe.Length == 0) && !string.IsNullOrWhiteSpace(groupByAncestorAlias))
+            if ((groupRootIds == null || groupRootIds.Length == 0) && !string.IsNullOrWhiteSpace(groupByAncestorAlias))
             {
-                groupRootIdsSafe = DiscoverGroupRoots(umbCtx, siteRootIds, groupByAncestorAlias);
-                if (maxGroups > 0 && groupRootIdsSafe.Length > maxGroups)
-                    groupRootIdsSafe = groupRootIdsSafe.Take(maxGroups).ToArray();
+                groupRootIds = DiscoverGroupRoots(umb, siteRootIds, groupByAncestorAlias);
+                if (maxGroups > 0 && groupRootIds.Length > maxGroups)
+                    groupRootIds = groupRootIds.Take(maxGroups).ToArray();
             }
 
             // Allow alias="*" to disable alias constraint; default remains "tidindaelement"
@@ -137,14 +132,14 @@ namespace Lararafelagid.Controllers
             var searcher = index.Searcher;
 
             // Diagnostics
-            if (diag == 1) return Ok(DiagIndex(searcher, siteRootIds, groupRootIdsSafe, newsAliases.Length == 0 ? new[] { "ALL" } : newsAliases));
-            if (diag == 2) return Ok(DiagPath(umbCtx, searcher, groupRootIdsSafe, newsAliases.Length == 0 ? new[] { "ALL" } : newsAliases));
+            if (diag == 1) return Ok(DiagIndex(searcher, siteRootIds, groupRootIds, newsAliases.Length == 0 ? new[] { "ALL" } : newsAliases));
+            if (diag == 2) return Ok(DiagPath(umb, searcher, groupRootIds, newsAliases.Length == 0 ? new[] { "ALL" } : newsAliases));
             if (diag == 3) return Ok(DiagFields(searcher));
             if (diag == 4) return Ok(DiagUndirsida(searcher, siteRootIds));
             if (diag == 5)
             {
                 var aliasForDiag = !string.IsNullOrWhiteSpace(primaryAlias) ? primaryAlias : otherAlias;
-                return Ok(DiagAliasBucket(searcher, aliasForDiag ?? "undirsida", siteRootIds, term, umbCtx, includeHidden: ignoreHide == 1, applySiteScope: ignoreSiteScope == 0, useRegex: noRegex == 0));
+                return Ok(DiagAliasBucket(searcher, aliasForDiag ?? "undirsida", siteRootIds, term, umb, includeHidden: ignoreHide == 1, applySiteScope: ignoreSiteScope == 0, useRegex: noRegex == 0));
             }
 
             var response = new SearchResponse
@@ -162,9 +157,9 @@ namespace Lararafelagid.Controllers
                     var primQuery = BuildAliasBucket(searcher, primaryAlias, siteRootIds, term, applySiteScope: ignoreSiteScope == 0, useRegex: noRegex == 0);
                     var primExec  = primQuery.Execute();
 
-                    var primTotal = ignoreHide == 1 ? primExec.TotalItemCount : CountVisible(umbCtx, primExec);
-                    var primItems = ignoreHide == 1 ? MapTop(umbCtx, primExec.Skip(skip).Take(take), _urlProvider)
-                                                    : PickTopVisible(umbCtx, primExec, take, skip, _urlProvider);
+                    var primTotal = ignoreHide == 1 ? primExec.TotalItemCount : CountVisible(umb, primExec);
+                    var primItems = ignoreHide == 1 ? MapTop(umb, primExec.Skip(skip).Take(take), _urlProvider)
+                                                    : PickTopVisible(umb, primExec, take, skip, _urlProvider);
 
                     response.Primary = new SearchGroup
                     {
@@ -184,7 +179,7 @@ namespace Lararafelagid.Controllers
                                .And().NativeQuery(AnyPathClause(primaryRootId));
 
                     var primRes = prim.Execute();
-                    var primaryNode = umbCtx.Content?.GetById(primaryRootId);
+                    var primaryNode = umb.Content.GetById(primaryRootId);
 
                     response.Primary = new SearchGroup
                     {
@@ -194,17 +189,16 @@ namespace Lararafelagid.Controllers
                         RootKey  = primaryNode?.Key.ToString(),
                         RootName = primaryNode?.Name ?? string.Empty,
                         Total    = primRes.TotalItemCount,
-                        Items    = MapTop(umbCtx, primRes.Skip(skip).Take(take), _urlProvider)
+                        Items    = MapTop(umb, primRes.Skip(skip).Take(take), _urlProvider)
                     };
                 }
 
                 // 2) Right column: groups
-            var effectiveGroupRoots = (groupRootIds != null && groupRootIds.Length > 0)
-    ? groupRootIds
-    : (primaryRootId > 0
-        ? siteRootIds.Where(id => id != primaryRootId).ToArray()
-        : siteRootIds);
-
+                var effectiveGroupRoots = (groupRootIds.Length > 0)
+                    ? groupRootIds
+                    : (primaryRootId > 0
+                        ? siteRootIds.Where(id => id != primaryRootId).ToArray()
+                        : siteRootIds);
 
                 foreach (var rootId in effectiveGroupRoots)
                 {
@@ -213,7 +207,7 @@ namespace Lararafelagid.Controllers
                               .And().NativeQuery(AnyPathClause(rootId));
 
                     var grs = gq.Execute();
-                    var rootNode = umbCtx.Content?.GetById(rootId);
+                    var rootNode = umb.Content.GetById(rootId);
 
                     response.Groups.Add(new SearchGroup
                     {
@@ -223,7 +217,7 @@ namespace Lararafelagid.Controllers
                         RootKey  = rootNode?.Key.ToString(),
                         RootName = rootNode?.Name ?? string.Empty,
                         Total    = grs.TotalItemCount,
-                        Items    = MapTop(umbCtx, grs.Take(takePerGroup), _urlProvider)
+                        Items    = MapTop(umb, grs.Take(takePerGroup), _urlProvider)
                     });
                 }
 
@@ -233,9 +227,9 @@ namespace Lararafelagid.Controllers
                     var aliasQuery = BuildAliasBucket(searcher, otherAlias, siteRootIds, term, applySiteScope: ignoreSiteScope == 0, useRegex: noRegex == 0);
                     var aliasExec  = aliasQuery.Execute();
 
-                    var aliasTotal = ignoreHide == 1 ? aliasExec.TotalItemCount : CountVisible(umbCtx, aliasExec);
-                    var aliasItems = ignoreHide == 1 ? MapTop(umbCtx, aliasExec.Take(takePerGroup), _urlProvider)
-                                                     : PickTopVisible(umbCtx, aliasExec, takePerGroup, 0, _urlProvider);
+                    var aliasTotal = ignoreHide == 1 ? aliasExec.TotalItemCount : CountVisible(umb, aliasExec);
+                    var aliasItems = ignoreHide == 1 ? MapTop(umb, aliasExec.Take(takePerGroup), _urlProvider)
+                                                     : PickTopVisible(umb, aliasExec, takePerGroup, 0, _urlProvider);
 
                     response.Groups.Add(new SearchGroup
                     {
@@ -379,7 +373,7 @@ namespace Lararafelagid.Controllers
             foreach (var hit in sample)
             {
                 if (!int.TryParse(hit.Id, out var id)) continue;
-                var c = umb.Content?.GetById(id);
+                var c = umb.Content.GetById(id);
                 if (c == null) continue;
                 var path = (c.Path ?? string.Empty).Replace(" ", string.Empty);
                 foreach (var gr in groupRootIds)
@@ -451,7 +445,7 @@ namespace Lararafelagid.Controllers
             var baseRes = Base().Execute();
             var total   = baseRes.TotalItemCount;
 
-            // ✅ parentheses around the ORs for NativeQuery
+            // ✅ fixed: NativeQuery(...) needs parentheses around the string
             var hidden = Base()
                 .And().NativeQuery("(umbracoNaviHide:1 OR umbracoNaviHide:true OR umbracoNaviHide:True OR umbracoNaviHide:yes)")
                 .Execute().TotalItemCount;
@@ -504,11 +498,8 @@ namespace Lararafelagid.Controllers
             }
             else
             {
-                if (umb.Content != null)
-{
-    foreach (var root in umb.Content.GetAtRoot())
-        list.AddRange(root.DescendantsOfType(ancestorAlias).Select(x => x.Id));
-}
+                foreach (var root in umb.Content.GetAtRoot())
+                    list.AddRange(root.DescendantsOfType(ancestorAlias).Select(x => x.Id));
             }
 
             return list.Distinct().ToArray();

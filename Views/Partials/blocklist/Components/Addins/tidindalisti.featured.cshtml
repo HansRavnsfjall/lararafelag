@@ -38,11 +38,21 @@
         faroeseZone ??= TimeZoneInfo.Utc; // never crash
     }
 
-    // Compare by DATE (not time) to avoid “later today” hiding posts
-    var faroeseToday = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, faroeseZone).Date;
+    // Interpret dagfesting as Faroe-local clock time and compare to UTC now
+    DateTime GetPublishUtc(IPublishedContent x)
+    {
+        var d = x.Value<DateTime?>("dagfesting") ?? x.CreateDate;
 
-    // Culture-aware visibility (prevents items hidden by culture from disappearing unexpectedly)
-    var culture = System.Globalization.CultureInfo.CurrentUICulture?.Name ?? "";
+        // If explicitly UTC, respect it
+        if (d.Kind == DateTimeKind.Utc)
+            return d;
+
+        // For Local or Unspecified: treat stored clock time as Faroe local
+        var naive = new DateTime(d.Year, d.Month, d.Day, d.Hour, d.Minute, d.Second, DateTimeKind.Unspecified);
+        return TimeZoneInfo.ConvertTimeToUtc(naive, faroeseZone);
+    }
+
+    var nowUtc = DateTime.UtcNow;
 
     var items = Enumerable.Empty<IPublishedContent>();
     if (sources != null && sources.Any())
@@ -50,14 +60,12 @@
         items = sources
             .SelectMany(parent => parent
                 .DescendantsOfType("tidindaelement")
-                .Where(x => x.IsPublished(culture) && !x.Value<bool>("umbracoNaviHide")))
+                .Where(x => x.IsPublished() && !x.Value<bool>("umbracoNaviHide")))
             .DistinctBy(x => x.Id)
-            .Select(x => new { Node = x, Date = x.Value<DateTime?>("dagfesting") ?? x.CreateDate })
-            .Where(x => x.Date.Date <= faroeseToday) // ⬅️ Faroe local DATE
-            .OrderByDescending(x => x.Date)
+            .Where(x => GetPublishUtc(x) <= nowUtc)      // ⬅️ only show when news date+time is now/past (Faroe time)
+            .OrderByDescending(GetPublishUtc)            // newest first
             .Skip(startFrom)
             .Take(takeCount)
-            .Select(x => x.Node)
             .ToList();
     }
 
@@ -89,9 +97,11 @@
         {
             foreach (var item in items)
             {
+                var publishUtc  = GetPublishUtc(item);
+                var localDate   = TimeZoneInfo.ConvertTimeFromUtc(publishUtc, faroeseZone);
+
                 var title = item.Name;
                 var intro = item.Value<string>("inngangstekstur");
-                var date  = item.Value<DateTime?>("dagfesting");
                 var tema  = item.Value<string>("tema");
                 var image = item.Value<MediaWithCrops>("mynd");
                 var link  = item.Url();
@@ -113,10 +123,7 @@
                                 }
                                 <div class="yvirskrift">@title</div>
 
-                                @if (date.HasValue && date.Value != default)
-                                {
-                                    <div class="date hide">@date.Value.ToString("dd. MMMM yyyy")</div>
-                                }
+                                <div class="date hide">@localDate.ToString("dd. MMMM yyyy")</div>
 
                                 @if (!string.IsNullOrEmpty(intro))
                                 {
